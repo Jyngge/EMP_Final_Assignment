@@ -1,0 +1,45 @@
+# Ignore build artifacts
+*.o
+*.obj
+*.out
+*.map
+*.d
+*.elf
+*.bin
+*.hex
+
+# Ignore CCS-specific files
+*.d
+*.cmd
+*.log
+*.stackdump
+*.mk
+*.dep
+
+# Ignore temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
+*.swd
+*.DS_Store
+
+# Ignore IDE-specific files
+.vscode/
+*.workspace
+*.project
+*.cproject
+
+# Ignore FreeRTOS heap files if not used
+heap_*.c
+
+# Ignore debug folders
+Debug/
+Release/
+
+# Ignore auto-generated files
+*.asm
+*.lst
+*.map
+*.lst
+*.exe
