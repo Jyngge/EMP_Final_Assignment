@@ -65,7 +65,6 @@ const INT8U LCD_init_sequence[] =
 
 
 INT8U cursor_position = 0;                  // tracks cursor position
-
 QueueHandle_t xStringQueue;
 QueueHandle_t xControlQueue;
 

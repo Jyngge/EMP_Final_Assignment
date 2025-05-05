@@ -23,13 +23,19 @@
 /***************************** Include files *******************************/
 
 /*****************************    Defines    *******************************/
+typedef enum
+{
+  BE_SINGLE_PUSH,
+  BE_DOUBLE_PUSH,
+  BE_LONG_PUSH,
+} button_event_t;
 
 
 /*****************************   Constants   *******************************/
 
 /*****************************   Functions   *******************************/
 
-void button_task( INT8U task_no );
+void button_task(void *pvParameters);
 /*****************************************************************************
 *   Input    : -
 *   Output   : Button Event

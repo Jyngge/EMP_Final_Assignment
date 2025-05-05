@@ -20,6 +20,14 @@
 
 #include "emp_type.h"
 
+typedef union
+{
+  INT8U *string; // pointer to a string
+  INT8U *control; // control instruction (e.g., CLEAR_DISPLAY)
+  /* data */
+} LCDInput_t;
+
+
 /***************** Functions ******************/
 void lcd_char_write(INT8U character);
 void lcd_ctrl_write(INT8U instruction);

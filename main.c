@@ -26,6 +26,8 @@
 #include "lcd.h"
 #include "queue.h"
 #include "semphr.h"
+#include "button.h"
+#include "timers.h"
 /***************** Defines ********************/
 
 #define USERTASK_STACK_SIZE configMINIMAL_STACK_SIZE
@@ -54,6 +56,7 @@
 /***************** Variables ******************/
 extern QueueHandle_t xStringQueue;
 extern QueueHandle_t xControlQueue;
+extern QueueHandle_t xButtonEventQueue;
 
 /***************** Functions ******************/
 void init_hardware(){
@@ -61,8 +64,9 @@ void init_hardware(){
   INT8U dummyload = SYSCTL_RCGC2_R;
 
   // buttons and leds
-  GPIO_PORTF_DEN_R = PIN0 + PIN1 + PIN2 + PIN3 + PIN4;
+  GPIO_PORTF_DEN_R = ALL_PINS;
   GPIO_PORTF_DIR_R = PIN1 +PIN2+PIN3;
+  GPIO_PORTF_PUR_R = PIN0 + PIN4;
   // lcd pins
   GPIO_PORTD_DEN_R = ALL_PINS; // enable all pins on port D
   GPIO_PORTD_DIR_R = ALL_PINS; // set all pins on port D to output
@@ -105,25 +109,72 @@ void vTestSendingTask(void *pvParameters)
     }
 }
 
-int main(void)
-{  
+void vTestTaskButtons(void *pvParameters)
+{
+    // One press adds 1 to buffer, double press adds 5, long press adds 10
+    INT16U num = 0;
+    BaseType_t xStatus;
+    button_event_t event;
 
+    INT8U numString[6]; // Buffer to hold the string (max 5 digits + null terminator)
+
+    while (1)
+    {
+        
+        xStatus = xQueueReceive(xButtonEventQueue, &event, portMAX_DELAY);
+        INT8U *puStringToSend;
+        if (xStatus == pdPASS)
+        {
+            
+            switch (event)
+            {
+                case BE_SINGLE_PUSH:
+                    puStringToSend = "Single Press!";
+                    xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY);
+                    break;
+                case BE_DOUBLE_PUSH:
+                    puStringToSend = "Double Press!";
+                    xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY); // Send the number to the string queue
+                    break;
+                case BE_LONG_PUSH:
+                    puStringToSend = "Long Press!";
+                    xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY); // Send the number to the string queue
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+}
+
+int main(void)
+{
+
+  setupHardware();
+  
   xStringQueue = xQueueCreate(5, sizeof(INT8U *));
   if(xStringQueue == NULL){
+    lcd_string_write("Queue creation failed!");
     while(1);
   }
 
   xControlQueue = xQueueCreate(5, sizeof(INT8U));
   if(xControlQueue == NULL){
+    lcd_string_write("Queue creation failed!");
     while(1);
   }
 
-  setupHardware();
-  
+  xButtonEventQueue = xQueueCreate(5, sizeof(INT8U));
+  if(xButtonEventQueue == NULL){
+    lcd_string_write("Queue creation failed!");
+    while(1);
+  }
+
   xTaskCreate(vLCDTask, "LCD", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
   xTaskCreate(status_led_task, "Status LED", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
-  xTaskCreate(vTestSendingTask, "Test Sending", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
-
+  //xTaskCreate(vTestSendingTask, "Test Sending", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
+  xTaskCreate(button_task, "Button", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
+  xTaskCreate(vTestTaskButtons, "Test Buttons", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, NULL);
   vTaskStartScheduler();
 	return 0;
 }
