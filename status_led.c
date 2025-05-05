@@ -46,13 +46,12 @@ void status_led_init(void)
 *   Function : 	
 *****************************************************************************/
 {
-  INT8S dummy;
+  //INT8S dummy;
   // Enable the GPIO port that is used for the on-board LED.
-  SYSCTL_RCGC2_R |= SYSCTL_RCGC2_GPIOD;
+  //SYSCTL_RCGC2_R |= SYSCTL_RCGC2_GPIOD;
 
   // Do a dummy read to insert a few cycles after enabling the peripheral.
-  dummy = SYSCTL_RCGC2_R;
-
+  //dummy = SYSCTL_RCGC2_R;
   GPIO_PORTD_DIR_R |= 0x40;
   GPIO_PORTD_DEN_R |= 0x40;
 }

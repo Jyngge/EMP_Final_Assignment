@@ -47,6 +47,7 @@
 
 #define SEQUENCE_TERMINATOR     0xFF        // sequence terminator for init sequence
 
+
 /***************** Constants ******************/
 
 const INT8U LCD_init_sequence[] =
@@ -61,8 +62,14 @@ const INT8U LCD_init_sequence[] =
 };
 
 /***************** Variables ******************/
+
+
 INT8U cursor_position = 0;                  // tracks cursor position
-extern QueueHandle_t xLCDQueue;
+
+QueueHandle_t xStringQueue;
+QueueHandle_t xControlQueue;
+
+
 /***************** Functions ******************/
 
 
@@ -100,7 +107,7 @@ void lcd_char_write(INT8U character)
     GPIO_PORTD_DATA_R |= (1<<3);            // Set E High
     GPIO_PORTD_DATA_R &= ~(1<<3);           // Set E Low
     
-    vTaskDelay(1 / portTICK_RATE_MS);       // wait 1 ms
+    vTaskDelay(5);       // wait 1 ms
 }
 
 
@@ -125,7 +132,7 @@ void lcd_ctrl_write(INT8U instruction)
     GPIO_PORTD_DATA_R |= (1<<3);            // Set E High
     GPIO_PORTD_DATA_R &= ~(1<<3);           // Set E Low
 
-    vTaskDelay(1 / portTICK_RATE_MS);       // wait 1 ms
+    vTaskDelay(5);       // wait 1 ms
 
 }
 
@@ -244,38 +251,28 @@ void lcd_string_write(INT8U* charPTR)
 
 void vLCDTask(void *pvParameters)
 {
-
-    
-
-    INT8U *puRecievedIntruction;    
+    INT8U *receivedString;
+    INT8U receivedControl;
     BaseType_t xStatus;
 
-    while(1)
+    lcd_init_function(); // Initialize the LCD
+
+    while (1)
     {
-        xStatus = xQueueReceive(xLCDQueue, &puRecievedIntruction, portMAX_DELAY);
+        // Check for control instructions
+        xStatus = xQueueReceive(xControlQueue, &receivedControl, 0);
         if (xStatus == pdPASS)
         {
-
-            switch (puRecievedIntruction[0])
-            {
-            case 'c':
-                lcd_char_write(*(++puRecievedIntruction));
-                break;
-            case 's':
-                lcd_string_write(++puRecievedIntruction);
-                break;
-            case 'k':
-                lcd_ctrl_write(*(++puRecievedIntruction) - 47);
-                break;
-            default:
-                break;
-            }
-            
+            lcd_ctrl_write(receivedControl); // Send control instruction to LCD
         }
-        else
+
+        // Check for strings
+        xStatus = xQueueReceive(xStringQueue, &receivedString, 0);
+        if (xStatus == pdPASS)
         {
-            while(1);
+            lcd_string_write(receivedString); // Write the string to the LCD
         }
-    }
 
+        vTaskDelay(pdMS_TO_TICKS(100)); // Small delay to avoid busy-waiting
+    }
 }

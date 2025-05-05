@@ -20,7 +20,6 @@
 
 #include "emp_type.h"
 
-
 /***************** Functions ******************/
 void lcd_char_write(INT8U character);
 void lcd_ctrl_write(INT8U instruction);

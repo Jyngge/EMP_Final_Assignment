@@ -11,10 +11,12 @@
 # Ignore CCS-specific files
 *.d
 *.cmd
+!tm4c123gh6pm.cmd
 *.log
 *.stackdump
 *.mk
 *.dep
+
 
 # Ignore temporary files
 *.tmp
@@ -31,7 +33,7 @@
 *.cproject
 
 # Ignore FreeRTOS heap files if not used
-heap_*.c
+# heap_*.c
 
 # Ignore debug folders
 Debug/
@@ -39,7 +41,10 @@ Release/
 
 # Ignore auto-generated files
 *.asm
+!portasm.asm
 *.lst
 *.map
 *.lst
 *.exe
+
+# Exclude portasm.asm from being ignored
