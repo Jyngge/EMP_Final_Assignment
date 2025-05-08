@@ -41,11 +41,13 @@
 
 
 /*****************************   Constants   *******************************/
-QueueHandle_t xButtonEventQueue;
-TimerHandle_t xButtonTimeOutTimer;
 
 
 /*****************************   Variables   *******************************/
+QueueHandle_t xButtonEventQueue;
+TimerHandle_t xButtonTimeOutTimer;
+TaskHandle_t xButtonTaskHandle_1;
+TaskHandle_t xButtonTaskHandle_2;
 static INT8U  button_state = BS_IDLE;
 static button_event_t event;
 /*****************************   Functions   *******************************/
@@ -71,6 +73,28 @@ void vLongPushCallback( TimerHandle_t xTimer )
 	}
 }
 
+void vButtonIterruptHandler(void)
+/*****************************************************************************
+*   Input    :
+*   Output   :
+*   Function : Deferes the interrupt to the button task
+******************************************************************************/
+{
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	if(GPIO_PORTF_MIS_R & 0x01)
+	{
+		vTaskNotifyGiveFromISR(xButtonTaskHandle_2, &xHigherPriorityTaskWoken);	
+	}
+	else
+	{
+		vTaskNotifyGiveFromISR(xButtonTaskHandle_1, &xHigherPriorityTaskWoken);	
+	}
+	
+	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);							// yield to the button task if it is higher priority
+	//GPIO_PORTF_ICR_R = 0x11;												// clear the interrupt flag for PF4 and PF0
+
+}
+
 void button_task( void *pvParameters )
 /*****************************************************************************
 *   Input    :
@@ -79,18 +103,34 @@ void button_task( void *pvParameters )
 ******************************************************************************/
 {
 
+	// creates the timer for the button timeout
+	INT8U uTaskNumber = *((INT8U *) pvParameters);
+
 	xButtonTimeOutTimer = xTimerCreate( "LPTimeout", pdMS_TO_TICKS( 2000 ), ONE_SHOT, NULL, vLongPushCallback);
 	if( xButtonTimeOutTimer == NULL )
 	{
+		lcd_string_write("Timer creation failed!");
 		while(1); 
 	}
+
 
   	while(1)
   	{
 
+		
   		switch( button_state )
   		{
   		case BS_IDLE:
+		  	
+			if(uTaskNumber == 1)
+			{
+				GPIO_PORTF_ICR_R = 0x10;
+			}
+			else
+			{
+				GPIO_PORTF_ICR_R = 0x01;
+			}
+		    
 
 		    if( button_pushed( ))		                                    // if button pushed
 		    {

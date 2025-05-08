@@ -28,6 +28,7 @@
 #include "semphr.h"
 #include "button.h"
 #include "timers.h"
+#include "keypad.h"
 /***************** Defines ********************/
 
 #define USERTASK_STACK_SIZE configMINIMAL_STACK_SIZE
@@ -57,22 +58,39 @@
 extern QueueHandle_t xStringQueue;
 extern QueueHandle_t xControlQueue;
 extern QueueHandle_t xButtonEventQueue;
+extern TaskHandle_t xKeypadTaskHandle;
+extern TaskHandle_t xButtonTaskHandle_1;
+extern TaskHandle_t xButtonTaskHandle_2;
 
 /***************** Functions ******************/
 void init_hardware(){
-  SYSCTL_RCGC2_R = SYSCTL_RCGC2_GPIOF + SYSCTL_RCGC2_GPIOD + SYSCTL_RCGC2_GPIOC;
+  SYSCTL_RCGC2_R = SYSCTL_RCGC2_GPIOF + SYSCTL_RCGC2_GPIOD + SYSCTL_RCGC2_GPIOC + SYSCTL_RCGC2_GPIOA + SYSCTL_RCGC2_GPIOE;
   INT8U dummyload = SYSCTL_RCGC2_R;
 
   // buttons and leds
   GPIO_PORTF_DEN_R = ALL_PINS;
   GPIO_PORTF_DIR_R = PIN1 +PIN2+PIN3;
   GPIO_PORTF_PUR_R = PIN0 + PIN4;
+  GPIO_PORTF_IBE_R &= ~(PIN0 + PIN4); // interrupt on single edge 
+  GPIO_PORTF_IEV_R &= ~(PIN0 + PIN4); // falling edge
+  GPIO_PORTF_IM_R = PIN0 + PIN4;      // enable interrupts on PF0 and PF4
+  NVIC_EN0_R = 0x40000000;            // enable interrupt for GPIO Port F in NVIC
   // lcd pins
   GPIO_PORTD_DEN_R = ALL_PINS; // enable all pins on port D
   GPIO_PORTD_DIR_R = ALL_PINS; // set all pins on port D to output
   GPIO_PORTC_DEN_R = ALL_PINS; // enable all pins on port C
   GPIO_PORTC_DIR_R = ALL_PINS; // set all pins on port C to output
+
+  // keypad pins
+  //GPIO_PORTA_DEN_R = PIN2 + PIN3 + PIN4;
+  //GPIO_PORTE_DEN_R = PIN1 + PIN2 + PIN3;
+  //GPIO_PORTE_DEN_R = PIN0;
+  //GPIO_PORTA_DIR_R = PIN2 + PIN3 + PIN4; // set pins 2, 3, and 4 to output
   
+  GPIO_PORTE_ICR_R = 0xFF;
+  NVIC_EN0_R |= (1 << 4);
+
+
 }
 
 static void setupHardware(void)
@@ -85,8 +103,8 @@ static void setupHardware(void)
 
   init_hardware();
   status_led_init();
+  vKeypadInit();
   init_systick();
-
 
 }
 
@@ -112,11 +130,11 @@ void vTestSendingTask(void *pvParameters)
 void vTestTaskButtons(void *pvParameters)
 {
     // One press adds 1 to buffer, double press adds 5, long press adds 10
-    INT16U num = 0;
+
     BaseType_t xStatus;
     button_event_t event;
 
-    INT8U numString[6]; // Buffer to hold the string (max 5 digits + null terminator)
+
 
     while (1)
     {
@@ -170,11 +188,15 @@ int main(void)
     while(1);
   }
 
+
+
   xTaskCreate(vLCDTask, "LCD", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
   xTaskCreate(status_led_task, "Status LED", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
   //xTaskCreate(vTestSendingTask, "Test Sending", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
-  xTaskCreate(button_task, "Button", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
+  xTaskCreate(button_task, "Button", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xButtonTaskHandle_1);
   xTaskCreate(vTestTaskButtons, "Test Buttons", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, NULL);
+  xTaskCreate(vKeypadScanTask, "Keypad Scan", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xKeypadTaskHandle);
+  xTaskCreate(vKeypadTestTask, "Keypad Test", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, NULL);
   vTaskStartScheduler();
 	return 0;
 }
