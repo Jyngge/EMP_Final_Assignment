@@ -20,23 +20,24 @@
 #include "keypad.h"
 
 /***************** Defines ********************/
-#define COLUMN0     0x10    //PA4
-#define COLUMN1     0x08    //PA3
-#define COLUMN2     0x04    //PA2
-#define ROW0        0x08    //PE3
-#define ROW1        0x02    //PE1
-#define ROW2        0x04    //PE2
-#define ROW3        0x01    //PE0
+#define COLUMN0     0x10    //PA4 //f //x1
+#define COLUMN1     0x08    //PA3 //e //x2
+#define COLUMN2     0x04    //PA2 //d //x3
+#define ROW1        0x08    //PE3 //k //y1
+#define ROW2        0x04    //PE2 //j //y2
+#define ROW3        0x02    //PE1 //h //y3
+#define ROW0        0x01    //PE0 //g //y4
 #define ROW_MASK    0x0F    //PE3, PE1, PE2, PE0
 #define COLUMN_MASK 0x1C    //PA4, PA3, PA2
 
 /***************** Constants ******************/
 const static INT8U keypad[4][3] = 
 {   //not the physical layout of the keypad
-    {'*', '0', '#'},  // Row 0
-    {'1', '2', '3'},  // Row 1
-    {'4', '5', '6'},  // Row 2
-    {'7', '8', '9'}   // Row 3
+        // Row 0
+    {'1', '2', '3'},    // Row 1
+    {'4', '5', '6'},    // Row 2
+    {'7', '8', '9'},     // Row 3
+    {'*', '0', '#'}
 };
 
 /***************** Variables ******************/
@@ -44,7 +45,7 @@ INT16U keyPressed;                   // Key pressed
 INT16U row, column;                  // Row and column indices
 QueueHandle_t xKeypadQueue;         // Queue to send key presses
 TaskHandle_t xKeypadTaskHandle;     // Handle for the keypad task
-INT16U interruptFlag;
+
 
 INT32U dummyGive;
 INT32U dummyTake;
@@ -67,7 +68,7 @@ void vKeypadInit(void)
     GPIO_PORTE_IM_R |= ROW_MASK;        // Enable interrupt on rows
     GPIO_PORTE_IS_R &= ~ROW_MASK;       // Set interrupt to edge-sensitive
     GPIO_PORTE_IBE_R &= ~ROW_MASK;      // Interrupt on a single edge
-    GPIO_PORTE_IEV_R |= ROW_MASK;       // Interrupt on falling edge
+    GPIO_PORTE_IEV_R |= ROW_MASK;       // Trigger on rising edge
     GPIO_PORTE_ICR_R |= ROW_MASK;       // Clear any prior interrupt
     
     GPIO_PORTA_DATA_R |= COLUMN_MASK;   // Set all columns high to trip interupt
@@ -112,14 +113,14 @@ void vKeypadInterruptHandler(void)
  * Function : Performs the context switch to the keypad task
  **********************************************/
 {
-    interruptFlag = GPIO_PORTE_MIS_R & ROW_MASK;
     GPIO_PORTE_IM_R &= ~ROW_MASK;
-    GPIO_PORTE_ICR_R = ROW_MASK;                          // Clear the interrupt flags for rows
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;   
-    vTaskNotifyGiveFromISR(xKeypadTaskHandle, &xHigherPriorityTaskWoken);
+    xTaskNotifyFromISR(xKeypadTaskHandle,GPIO_PORTE_RIS_R & (ROW_MASK), eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
+    GPIO_PORTE_ICR_R |= ROW_MASK;
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-
 }
+
+
 
 void vKeypadScanTask(void *pvParameters)
 /**********************************************
@@ -130,42 +131,45 @@ void vKeypadScanTask(void *pvParameters)
  **********************************************/
 {
     INT16U i;
+    INT32U RecievdValue;
     
 
     while (1)
     {
-        dummyTake = ulTaskNotifyTake(pdFalse, portMAX_DELAY);
-        GPIO_PORTE_IM_R &= ~ROW_MASK;
-
-        i = 4;
-
-        while(interruptFlag >1)
-        {
-            interruptFlag >>=1;
-            i--;
-        }
-
-        row = i;
-        i = 0;
         
-        while(GPIO_PORTE_DATA_R & COLUMN_MASK)
+        xTaskNotifyWait(0x00, 0xFFFFFFFF, &RecievdValue, portMAX_DELAY); // Wait for notification from interrupt handler
+        
+        i = 0;
+        while(RecievdValue >>=1)
         {
-            GPIO_PORTA_DATA_R &= ~(1<<(2 + i));
             i++;
         }
+        row = 3-i;
 
-        column = i;
-
+        i = 3;
+        while(GPIO_PORTE_DATA_R & ROW_MASK)
+        {
+            GPIO_PORTA_DATA_R &= ~(1<<(1 + i));
+            i--;
+        }
+        column = 2-i;
 
 
         GPIO_PORTA_DATA_R |= COLUMN_MASK;                     // Set column 3 high
         keyPressed = keypad[row][column];                     // Get the key pressed from the keypad array
         xQueueSend(xKeypadQueue, &keyPressed, portMAX_DELAY); // Send key press to queue
+
         while(GPIO_PORTE_DATA_R & ROW_MASK)
         {
-            vTaskDelay(pdMS_TO_TICKS(5000));
+            vTaskDelay(pdMS_TO_TICKS(50));
+
         }
+        //vTaskDelay(pdMS_TO_TICKS(300));
+        GPIO_PORTE_ICR_R |= ROW_MASK;
         GPIO_PORTE_IM_R |= ROW_MASK;                          // Re-enable interrupts on rows
+        
+
+                                 
     }
 }
 
