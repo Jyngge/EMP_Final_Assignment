@@ -18,6 +18,8 @@
 /***************** Include files **************/
 
 #include "keypad.h"
+#include <limits.h>
+
 
 /***************** Defines ********************/
 #define COLUMN0     0x10    //PA4 //f //x1
@@ -97,11 +99,11 @@ void vKeypadTestTask(void *pvParameters)
         xStatus = xQueueReceive(xKeypadQueue, &keyPressedTest, portMAX_DELAY);
         if(xStatus == pdPASS)
         {
-            lcd_clear_display();
             lcd_char_write(keyPressedTest);
         } else {
             lcd_string_write("Error receiving key press!");
         }
+
 
     }
 }
@@ -137,23 +139,26 @@ void vKeypadScanTask(void *pvParameters)
     while (1)
     {
         
-        xTaskNotifyWait(0x00, 0xFFFFFFFF, &RecievdValue, portMAX_DELAY); // Wait for notification from interrupt handler
+        xTaskNotifyWait(0x00, ULONG_MAX, &RecievdValue, portMAX_DELAY); // Wait for notification from interrupt handler
         
         i = 0;
+
         while(RecievdValue >>=1)
         {
             i++;
         }
+
         row = 3-i;
 
         i = 3;
+        
         while(GPIO_PORTE_DATA_R & ROW_MASK)
         {
             GPIO_PORTA_DATA_R &= ~(1<<(1 + i));
             i--;
         }
-        column = 2-i;
 
+        column = 2-i;
 
         GPIO_PORTA_DATA_R |= COLUMN_MASK;                     // Set column 3 high
         keyPressed = keypad[row][column];                     // Get the key pressed from the keypad array
@@ -161,14 +166,12 @@ void vKeypadScanTask(void *pvParameters)
 
         while(GPIO_PORTE_DATA_R & ROW_MASK)
         {
-            vTaskDelay(pdMS_TO_TICKS(50));
+            vTaskDelay(pdMS_TO_TICKS(25));
 
         }
         //vTaskDelay(pdMS_TO_TICKS(300));
         GPIO_PORTE_ICR_R |= ROW_MASK;
         GPIO_PORTE_IM_R |= ROW_MASK;                          // Re-enable interrupts on rows
-        
-
                                  
     }
 }

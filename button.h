@@ -20,7 +20,19 @@
 #ifndef BUTTON_H_
 #define BUTTON_H_
 
+
 /***************************** Include files *******************************/
+#include <stdint.h>
+#include "tm4c123gh6pm.h"
+#include "emp_type.h"
+#include "button.h"
+#include "freeRTOS.h"
+#include "list.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+#include "timers.h"
+#include "lcd.h"
 
 /*****************************    Defines    *******************************/
 typedef enum
@@ -29,6 +41,13 @@ typedef enum
   BE_DOUBLE_PUSH,
   BE_LONG_PUSH,
 } button_event_t;
+
+typedef struct 
+{	
+    INT16U button_state;
+	button_event_t event;
+	QueueHandle_t *xButtonEventQueue;
+} ButtonState_t;
 
 
 /*****************************   Constants   *******************************/

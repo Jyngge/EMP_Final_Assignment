@@ -57,23 +57,26 @@
 /***************** Variables ******************/
 extern QueueHandle_t xStringQueue;
 extern QueueHandle_t xControlQueue;
-extern QueueHandle_t xButtonEventQueue;
+extern QueueHandle_t xButtonEventQueue_SW4;
+extern QueueHandle_t xButtonEventQueue_SW0;
+extern TaskHandle_t xButtonTaskHandle_SW4;
+extern TaskHandle_t xButtonTaskHandle_SW0;
 extern TaskHandle_t xKeypadTaskHandle;
-extern TaskHandle_t xButtonTaskHandle_1;
-extern TaskHandle_t xButtonTaskHandle_2;
-
 /***************** Functions ******************/
 void init_hardware(){
   SYSCTL_RCGC2_R = SYSCTL_RCGC2_GPIOF + SYSCTL_RCGC2_GPIOD + SYSCTL_RCGC2_GPIOC + SYSCTL_RCGC2_GPIOA + SYSCTL_RCGC2_GPIOE;
   INT8U dummyload = SYSCTL_RCGC2_R;
 
+  // Unlock GPIO Port F Pin 0
+  GPIO_PORTF_LOCK_R = 0x4C4F434B;          // Unlock GPIO Port F
+  GPIO_PORTF_CR_R |= PIN0;  
   // buttons and leds
-  GPIO_PORTF_DEN_R = ALL_PINS;
-  GPIO_PORTF_DIR_R = PIN1 +PIN2+PIN3;
-  GPIO_PORTF_PUR_R = PIN0 + PIN4;
+  GPIO_PORTF_DEN_R |= ALL_PINS;
+  GPIO_PORTF_DIR_R |= PIN1 +PIN2+PIN3;
+  GPIO_PORTF_PUR_R |= PIN0 + PIN4;
   GPIO_PORTF_IBE_R &= ~(PIN0 + PIN4); // interrupt on single edge 
   GPIO_PORTF_IEV_R &= ~(PIN0 + PIN4); // falling edge
-  GPIO_PORTF_IM_R = PIN0 + PIN4;      // enable interrupts on PF0 and PF4
+  GPIO_PORTF_IM_R |= PIN0 + PIN4;      // enable interrupts on PF0 and PF4
   NVIC_EN0_R = 0x40000000;            // enable interrupt for GPIO Port F in NVIC
   // lcd pins
   GPIO_PORTD_DEN_R = ALL_PINS; // enable all pins on port D
@@ -81,11 +84,6 @@ void init_hardware(){
   GPIO_PORTC_DEN_R = ALL_PINS; // enable all pins on port C
   GPIO_PORTC_DIR_R = ALL_PINS; // set all pins on port C to output
 
-  // keypad pins
-  //GPIO_PORTA_DEN_R = PIN2 + PIN3 + PIN4;
-  //GPIO_PORTE_DEN_R = PIN1 + PIN2 + PIN3;
-  //GPIO_PORTE_DEN_R = PIN0;
-  //GPIO_PORTA_DIR_R = PIN2 + PIN3 + PIN4; // set pins 2, 3, and 4 to output
   
   GPIO_PORTE_ICR_R = 0xFF;
   NVIC_EN0_R |= (1 << 4);
@@ -132,31 +130,36 @@ void vTestTaskButtons(void *pvParameters)
     // One press adds 1 to buffer, double press adds 5, long press adds 10
 
     BaseType_t xStatus;
-    button_event_t event;
+    ButtonState_t xButton;
 
 
 
     while (1)
     {
-        
-        xStatus = xQueueReceive(xButtonEventQueue, &event, portMAX_DELAY);
+        QueueHandle_t xButtonEventQueue;
+        xButtonEventQueue = *(QueueHandle_t *) pvParameters;
+        xStatus = xQueueReceive(xButtonEventQueue, &xButton.event, portMAX_DELAY);
         INT8U *puStringToSend;
         if (xStatus == pdPASS)
         {
             
-            switch (event)
+            switch (xButton.event)
             {
                 case BE_SINGLE_PUSH:
                     puStringToSend = "Single Press!";
+                    lcd_ctrl_write(0x01); // Clear the display
                     xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY);
                     break;
                 case BE_DOUBLE_PUSH:
                     puStringToSend = "Double Press!";
+                    lcd_ctrl_write(0x01); // Clear the display
                     xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY); // Send the number to the string queue
                     break;
                 case BE_LONG_PUSH:
                     puStringToSend = "Long Press!";
+                    lcd_ctrl_write(0x01); // Clear the display
                     xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY); // Send the number to the string queue
+                    
                     break;
                 default:
                     break;
@@ -182,19 +185,27 @@ int main(void)
     while(1);
   }
 
-  xButtonEventQueue = xQueueCreate(5, sizeof(INT8U));
-  if(xButtonEventQueue == NULL){
+  xButtonEventQueue_SW4 = xQueueCreate(5, sizeof(INT8U));
+  if(xButtonEventQueue_SW4 == NULL){
     lcd_string_write("Queue creation failed!");
     while(1);
   }
 
+  xButtonEventQueue_SW0 = xQueueCreate(5, sizeof(INT8U));
+  if(xButtonEventQueue_SW0 == NULL){
+    lcd_string_write("Queue creation failed!");
+    while(1);
+  }
 
-
+  static INT16U temp1 = PIN4;
+  static INT16U temp2 = PIN0;
   xTaskCreate(vLCDTask, "LCD", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
   xTaskCreate(status_led_task, "Status LED", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
   //xTaskCreate(vTestSendingTask, "Test Sending", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
-  xTaskCreate(button_task, "Button", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xButtonTaskHandle_1);
-  xTaskCreate(vTestTaskButtons, "Test Buttons", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, NULL);
+  xTaskCreate(button_task, "Button1", USERTASK_STACK_SIZE, &temp1, HIGH_PRIO, &xButtonTaskHandle_SW4);
+  xTaskCreate(button_task, "Button2", USERTASK_STACK_SIZE, &temp2, HIGH_PRIO, &xButtonTaskHandle_SW0);
+  xTaskCreate(vTestTaskButtons, "Test Buttons SW4", USERTASK_STACK_SIZE, &xButtonEventQueue_SW4, HIGH_PRIO, NULL);
+  xTaskCreate(vTestTaskButtons, "Test Buttons SW0", USERTASK_STACK_SIZE, &xButtonEventQueue_SW0, HIGH_PRIO, NULL);
   xTaskCreate(vKeypadScanTask, "Keypad Scan", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xKeypadTaskHandle);
   xTaskCreate(vKeypadTestTask, "Keypad Test", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, NULL);
   vTaskStartScheduler();

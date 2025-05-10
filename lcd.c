@@ -50,7 +50,7 @@
 
 /***************** Constants ******************/
 
-const INT8U LCD_init_sequence[] =
+const static INT8U LCD_init_sequence[] =
 {
   SET_4BIT_MODE,
   SET_4BIT_MODE + SET_2_LINE_DISPLAY,
@@ -62,13 +62,10 @@ const INT8U LCD_init_sequence[] =
 };
 
 /***************** Variables ******************/
-
-
 INT8U cursor_position = 0;                  // tracks cursor position
 QueueHandle_t xStringQueue;
 QueueHandle_t xControlQueue;
-
-
+INT8U uCurrentPage = 0;                  
 /***************** Functions ******************/
 
 
@@ -106,7 +103,7 @@ void lcd_char_write(INT8U character)
     GPIO_PORTD_DATA_R |= (1<<3);            // Set E High
     GPIO_PORTD_DATA_R &= ~(1<<3);           // Set E Low
     
-    vTaskDelay(5);       // wait 1 ms
+    vTaskDelay(pdMS_TO_TICKS(25));
 }
 
 
@@ -131,8 +128,7 @@ void lcd_ctrl_write(INT8U instruction)
     GPIO_PORTD_DATA_R |= (1<<3);            // Set E High
     GPIO_PORTD_DATA_R &= ~(1<<3);           // Set E Low
 
-    vTaskDelay(5);       // wait 1 ms
-
+    vTaskDelay(pdMS_TO_TICKS(25));
 }
 
 
@@ -146,43 +142,69 @@ void lcd_clear_display(void)
     lcd_ctrl_write(CLEAR_DISPLAY);
 }
 
-void lcd_home(void)
+void lcd_home(INT8U page)
 /**********************************************
  * Input    :
  * Output   :
  * Function : Moves cursor to position 0
  **********************************************/
 {
-    lcd_ctrl_write(HOME);
+    if(page)
+    {
+        lcd_cursor_position(0x40,0);  // Move cursor home on page 1
+        cursor_position = 0x40;  // Reset cursor position
+    }
+    else
+    {
+        lcd_ctrl_write(HOME);       // Move cursor to home on page 0
+        cursor_position = 0;  // Reset cursor position
+    }
     
-    cursor_position = 0;
+}
+void vLcdSwapPage(void)
+/**********************************************
+ * Input    : 
+ * Output   :
+ * Function : Swaps between page 1 and page 2
+ *           (0x20 and 0x40)
+ **********************************************/
+{
+    if(uCurrentPage){
+        lcd_shift_display_left(0x20); // Shift display left to show page 1
+        uCurrentPage = 0;
+    } else {
+        lcd_shift_display_right(0x20); // Shift display right to show page 2
+        uCurrentPage = 1;
+    }
 }
 
-void lcd_cursor_position(INT8U position_target)
+void lcd_cursor_position(INT8U x , INT8U y)
 /**********************************************
  * Input    : Target position
  * Output   :
  * Function : Moves cursor to target position from current position
  **********************************************/
 {
+    INT8U target_position = x+y*0x20;
+    
 
-    if (position_target > cursor_position)
+    if(target_position > cursor_position)
     {
-        while (position_target != cursor_position)
+        while (target_position - cursor_position)
+        {
+            lcd_ctrl_write(MOVE_CURSOR_LEFT);            
+        }
+    }
+    else if(target_position < cursor_position)
+    {
+        while (cursor_position - target_position)
         {
             lcd_ctrl_write(MOVE_CURSOR_RIGHT);
-            cursor_position++;
         }
     }
-    else
-    {
-        while (position_target != cursor_position)
-        {
-            lcd_ctrl_write(MOVE_CURSOR_LEFT);
-            cursor_position--;
-        }
-    }
+   
 }
+
 
 void lcd_shift_display_right(INT8U shift)
 /**********************************************
@@ -222,9 +244,9 @@ void lcd_time_write(INT8U* stringBuffer)
  * Function : writes buffer to display. at center if buffer length = 8
  **********************************************/
 {
-    lcd_cursor_position(CENTER_DISPLAY);
+    lcd_cursor_position(CENTER_DISPLAY,0);
     lcd_string_write(stringBuffer);
-    lcd_home();
+    lcd_home(0);
 
 }
 
@@ -243,7 +265,7 @@ void lcd_string_write(INT8U* charPTR)
     {
         lcd_char_write(charPTR[i++]);
     }
-    lcd_home();
+    lcd_home(0); // Move cursor home after writing the string
 }
 
 
