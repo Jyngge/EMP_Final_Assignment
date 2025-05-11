@@ -184,7 +184,7 @@ void button_task( void *pvParameters )
 
 		
   		}
-		vTaskDelay(10);
+		vTaskDelay(5);
   	}
 }
 

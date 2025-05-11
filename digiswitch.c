@@ -52,12 +52,12 @@ void digiswitchInterruptHandler(void)
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
 
-    A = sReadA(); // read pin 5
-    B = sReadB(); // read pin 6
-    if(A == B) // check if interrupt was triggered by pin 5
-        dir = 1;
+    A = sReadA();   // read pin 5
+    B = sReadB();   // read pin 6
+    if(A == B)      // check if interrupt was triggered by pin 5
+        postion--;
     else
-        dir = 0;
+        postion++;
         
     xTaskNotifyFromISR(xDigiSwitchTaskHandle,NULL,eIncrement,&xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -65,9 +65,9 @@ void digiswitchInterruptHandler(void)
     GPIO_PORTA_ICR_R = PIN5;
 }
 
-void sIntToString(INT8U *buffer)
+void sIntToString(INT8U *buffer,INT16U displayPosition)
 {
-    INT16U temp = postion;
+    INT16U temp = displayPosition;
     INT8U tempBuffer[4];
     INT16U i = 0;
     for(i = 0; i < 4; i++)
@@ -87,17 +87,20 @@ void sIntToString(INT8U *buffer)
 void vDigiswitchTask(void *pvParameters)
 {
     INT8U buffer[4];
-
+    INT16U displayPosition = postion; // output value counting to positon value
+    
     while (1)
     {
         ulTaskNotifyTake(pdFALSE , portMAX_DELAY);
-        if(dir){
-            postion++;
+        if(displayPosition < postion)
+        {
+            displayPosition++;
         }
-        else{
-            postion--;
+        if(displayPosition > postion)
+        {
+            displayPosition--;
         }
-        sIntToString(buffer);
+        sIntToString(buffer,displayPosition);
         lcd_string_write(buffer);
     }
 }
