@@ -11,8 +11,8 @@
 * Change Log:
 ******************************************************************************
 * Date    Id          Change
-* 040525  Majur22     Module created.
-*
+* 020525  Majur22     Module created.
+* 
 *****************************************************************************/
 /***************** Include files **************/
 
@@ -29,6 +29,7 @@
 #include "button.h"
 #include "timers.h"
 #include "keypad.h"
+#include "digiswitch.h"
 /***************** Defines ********************/
 
 #define USERTASK_STACK_SIZE configMINIMAL_STACK_SIZE
@@ -57,11 +58,13 @@
 /***************** Variables ******************/
 extern QueueHandle_t xStringQueue;
 extern QueueHandle_t xControlQueue;
+extern QueueHandle_t xLcdFunctionQueue;
 extern QueueHandle_t xButtonEventQueue_SW4;
 extern QueueHandle_t xButtonEventQueue_SW0;
 extern TaskHandle_t xButtonTaskHandle_SW4;
 extern TaskHandle_t xButtonTaskHandle_SW0;
 extern TaskHandle_t xKeypadTaskHandle;
+extern TaskHandle_t xDigiSwitchTaskHandle;
 /***************** Functions ******************/
 void init_hardware(){
   SYSCTL_RCGC2_R = SYSCTL_RCGC2_GPIOF + SYSCTL_RCGC2_GPIOD + SYSCTL_RCGC2_GPIOC + SYSCTL_RCGC2_GPIOA + SYSCTL_RCGC2_GPIOE;
@@ -102,6 +105,7 @@ static void setupHardware(void)
   init_hardware();
   status_led_init();
   vKeypadInit();
+  vDigiswitchInit();
   init_systick();
 
 }
@@ -115,7 +119,6 @@ void vTestSendingTask(void *pvParameters)
     {
         // Send a string to the string queue
         xQueueSend(xStringQueue, &stringMessage, portMAX_DELAY);
-
         vTaskDelay(pdMS_TO_TICKS(3000)); // Wait 3 seconds
 
         // Send a control instruction to the control queue
@@ -131,15 +134,15 @@ void vTestTaskButtons(void *pvParameters)
 
     BaseType_t xStatus;
     ButtonState_t xButton;
-
-
-
+    INT8U *puStringToSend;
+    QueueHandle_t xButtonEventQueue;
+    xButtonEventQueue = *(QueueHandle_t *) pvParameters;
+    INT8U ucClear = 0x01;
     while (1)
     {
-        QueueHandle_t xButtonEventQueue;
-        xButtonEventQueue = *(QueueHandle_t *) pvParameters;
+
         xStatus = xQueueReceive(xButtonEventQueue, &xButton.event, portMAX_DELAY);
-        INT8U *puStringToSend;
+
         if (xStatus == pdPASS)
         {
             
@@ -147,21 +150,23 @@ void vTestTaskButtons(void *pvParameters)
             {
                 case BE_SINGLE_PUSH:
                     puStringToSend = "Single Press!";
-                    lcd_ctrl_write(0x01); // Clear the display
+                    xQueueSend(xControlQueue, &ucClear, portMAX_DELAY);
                     xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY);
                     break;
                 case BE_DOUBLE_PUSH:
                     puStringToSend = "Double Press!";
-                    lcd_ctrl_write(0x01); // Clear the display
+                    xQueueSend(xControlQueue, &ucClear, portMAX_DELAY);
                     xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY); // Send the number to the string queue
                     break;
                 case BE_LONG_PUSH:
                     puStringToSend = "Long Press!";
-                    lcd_ctrl_write(0x01); // Clear the display
+                    xQueueSend(xControlQueue, &ucClear, portMAX_DELAY);
                     xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY); // Send the number to the string queue
                     
                     break;
                 default:
+                    lcd_string_write("failed to parse ButtonEvent");
+
                     break;
             }
         }
@@ -196,18 +201,26 @@ int main(void)
     lcd_string_write("Queue creation failed!");
     while(1);
   }
+  QueueHandle_t xLcdFunctionQueue = xQueueCreate(10, sizeof(LcdFunction_t));
+  if (xLcdFunctionQueue == NULL)
+  {
+      lcd_string_write("Queue creation failed!");
+      while (1);
+  }
 
   static INT16U temp1 = PIN4;
   static INT16U temp2 = PIN0;
-  xTaskCreate(vLCDTask, "LCD", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
+  xTaskCreate(vLCDTask, "LCD", USERTASK_STACK_SIZE + 100, NULL, MED_PRIO, NULL);
   xTaskCreate(status_led_task, "Status LED", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
   //xTaskCreate(vTestSendingTask, "Test Sending", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
   xTaskCreate(button_task, "Button1", USERTASK_STACK_SIZE, &temp1, HIGH_PRIO, &xButtonTaskHandle_SW4);
   xTaskCreate(button_task, "Button2", USERTASK_STACK_SIZE, &temp2, HIGH_PRIO, &xButtonTaskHandle_SW0);
-  xTaskCreate(vTestTaskButtons, "Test Buttons SW4", USERTASK_STACK_SIZE, &xButtonEventQueue_SW4, HIGH_PRIO, NULL);
-  xTaskCreate(vTestTaskButtons, "Test Buttons SW0", USERTASK_STACK_SIZE, &xButtonEventQueue_SW0, HIGH_PRIO, NULL);
+  xTaskCreate(vTestTaskButtons,"Button1Test", USERTASK_STACK_SIZE, &xButtonEventQueue_SW4, MED_PRIO,NULL);
+  xTaskCreate(vTestTaskButtons,"Button1Test", USERTASK_STACK_SIZE, &xButtonEventQueue_SW0, MED_PRIO,NULL);
   xTaskCreate(vKeypadScanTask, "Keypad Scan", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xKeypadTaskHandle);
   xTaskCreate(vKeypadTestTask, "Keypad Test", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, NULL);
+  xTaskCreate(vDigiswitchTask, "DigiSwitch", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xDigiSwitchTaskHandle);
+  
   vTaskStartScheduler();
 	return 0;
 }

@@ -47,6 +47,7 @@ extern void xPortSysTickHandler(void);
 
 extern void vKeypadInterruptHandler(void);
 extern void vButtonInterruptHandler(void);
+extern void digiswitchInterruptHandler(void);
 
 //*****************************************************************************
 //
@@ -89,7 +90,7 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     xPortPendSVHandler,                      // The PendSV handler
     xPortSysTickHandler,                      // The SysTick handler
-    IntDefaultHandler,                      // GPIO Port A
+    digiswitchInterruptHandler,                      // GPIO Port A
     IntDefaultHandler,                      // GPIO Port B
     IntDefaultHandler,                      // GPIO Port C
     IntDefaultHandler,                      // GPIO Port D

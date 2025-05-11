@@ -167,8 +167,8 @@ void vKeypadScanTask(void *pvParameters)
         while(GPIO_PORTE_DATA_R & ROW_MASK)
         {
             vTaskDelay(pdMS_TO_TICKS(25));
-
         }
+
         //vTaskDelay(pdMS_TO_TICKS(300));
         GPIO_PORTE_ICR_R |= ROW_MASK;
         GPIO_PORTE_IM_R |= ROW_MASK;                          // Re-enable interrupts on rows
