@@ -23,31 +23,54 @@
 #include "queue.h"
 #include "semphr.h"
 #include "lcd.h"
+
 /***************** Defines ********************/
-#define MAX_FRAME_NUMBER    3
+
 #define MAX_FRAME_LENGTH    12
-#define MAX_FRAME_HIGHT     2
+#define MAX_OBJECT_LENGTH   8
 /***************** Constants ******************/
 /***************** Variables ******************/
-extern QueueHandle_t xStringQueue;
-extern QueueHandle_t xControlQueue;
 extern QueueHandle_t xButtonEventQueue;
 extern QueueHandle_t xKeypadQueue;
+extern QueueHandle_t xLcdFunctionQueue;
 //typedef struct 
 //{
 //    INT8U *FrameBuffer[MAX_FRAME_NUMBER][MAX_FRAME_HIGHT][MAX_FRAME_LENGTH];
 //    INT8U CurrentFrame;   
 //} frameBuffer_t;
 
-
 typedef struct 
 {
-    INT8U frameState;
-    INT8U FrameLocation;
-    INT8U *frameBuffer[MAX_FRAME_HIGHT][MAX_FRAME_LENGTH]; // 2D array to hold the frame buffer
-} UIFrame_t;
+    INT16U x;
+    INT16U y;
+    INT8U ucUpdateBuffer[MAX_OBJECT_LENGTH];
+    INT8U ucBuffer[MAX_OBJECT_LENGTH];
+} UIObject_t;
 
 /***************** Functions ******************/
+
+
+
+
+void vUIUpdateObject(UIObject_t *object, INT8U *ucStringBuffer)
+{
+    // mutex
+    INT16U i;
+    
+    LcdFunction_t xLcdFunctionMoveCursor = {lcd_cursor_position, object->x, object->y};
+    LcdFunction_t 
+    QueueSend(xLcdFunctionQueue, &xLcdFunctionMoveCursor, portMAX_DELAY);
+
+    for(i = 0; i < MAX_OBJECT_LENGTH; i++)
+    {
+        if(ucBuffer[i] == ucUpdateBuffer[i])
+        {
+            
+            break;
+        }
+    }
+
+}
 
 void vDrawFrame(UIFrame_t *frame)
 /**********************************************

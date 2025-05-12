@@ -134,10 +134,10 @@ void vTestTaskButtons(void *pvParameters)
 
     BaseType_t xStatus;
     ButtonState_t xButton;
-    INT8U *puStringToSend;
     QueueHandle_t xButtonEventQueue;
     xButtonEventQueue = *(QueueHandle_t *) pvParameters;
-    INT8U ucClear = 0x01;
+    LcdFunction_t instructionWrite = {lcd_string_write, NULL, NULL};
+    LcdFunction_t instructionClear = {lcd_clear_display, NULL, NULL};
     while (1)
     {
 
@@ -149,29 +149,35 @@ void vTestTaskButtons(void *pvParameters)
             switch (xButton.event)
             {
                 case BE_SINGLE_PUSH:
-                    puStringToSend = "Single Press!";
-                    xQueueSend(xControlQueue, &ucClear, portMAX_DELAY);
-                    xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY);
+                    instructionWrite.pvParameter1 = "Single Press!";
+                    xQueueSend(xLcdFunctionQueue, &instructionClear, portMAX_DELAY);
+                    xQueueSend(xLcdFunctionQueue, &instructionWrite, portMAX_DELAY);
+                    
+
                     break;
                 case BE_DOUBLE_PUSH:
-                    puStringToSend = "Double Press!";
-                    xQueueSend(xControlQueue, &ucClear, portMAX_DELAY);
-                    xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY); // Send the number to the string queue
+                    instructionWrite.pvParameter1 = "Double Press!";
+                    xQueueSend(xLcdFunctionQueue, &instructionClear, portMAX_DELAY);
+                    xQueueSend(xLcdFunctionQueue, &instructionWrite, portMAX_DELAY);
+                    
                     break;
                 case BE_LONG_PUSH:
-                    puStringToSend = "Long Press!";
-                    xQueueSend(xControlQueue, &ucClear, portMAX_DELAY);
-                    xQueueSend(xStringQueue, &puStringToSend, portMAX_DELAY); // Send the number to the string queue
+                    instructionWrite.pvParameter1 = "Long Press!";
+                    xQueueSend(xLcdFunctionQueue, &instructionClear, portMAX_DELAY);
+                    xQueueSend(xLcdFunctionQueue, &instructionWrite, portMAX_DELAY);
                     
                     break;
                 default:
                     lcd_string_write("failed to parse ButtonEvent");
-
+                    while(1);
                     break;
             }
         }
     }
 }
+
+
+
 
 int main(void)
 {
@@ -201,7 +207,7 @@ int main(void)
     lcd_string_write("Queue creation failed!");
     while(1);
   }
-  QueueHandle_t xLcdFunctionQueue = xQueueCreate(10, sizeof(LcdFunction_t));
+  xLcdFunctionQueue = xQueueCreate(10, sizeof(LcdFunction_t));
   if (xLcdFunctionQueue == NULL)
   {
       lcd_string_write("Queue creation failed!");

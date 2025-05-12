@@ -38,11 +38,12 @@
 
 #define SEQUENCE_TERMINATOR     0xFF        // sequence terminator for init sequence
 
-typedef void (*FunctionPointer_t)(INT8U *);
-typedef struct 
+typedef void (*FunctionPointer_t)(void *,void *);
+typedef struct
 {
     FunctionPointer_t pvFunction;
-    INT8U *pvParameter;
+    void *pvParameter1;
+    void *pvParameter2;
 }LcdFunction_t;
 
 

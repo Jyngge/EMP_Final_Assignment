@@ -26,8 +26,15 @@
 #include "task.h"
 #include "queue.h"
 /***************** Defines ********************/
+#define object_max_size 16
 
-
+typedef struct {
+    INT16U x;
+    INT16U y;
+    INT8U ucUpdateBuffer[object_max_size];
+    INT8U ucBuffer[object_max_size];
+    INT16U ulSize;
+} object_t;
 
 
 /***************** Constants ******************/
@@ -257,34 +264,18 @@ void lcd_string_write(INT8U* charPTR)
 
 void vLCDTask(void *pvParameters)
 {
-    INT8U *receivedString;
-    INT8U receivedControl;
-    //LcdFunction_t instruction;
+    LcdFunction_t instruction;
     BaseType_t xStatus;
 
     lcd_init_function(); // Initialize the LCD
-
     while (1)
     {
-        // Check for control instructions
-        xStatus = xQueueReceive(xControlQueue, &receivedControl, 5);
+    
+        xStatus = xQueueReceive(xLcdFunctionQueue, &instruction, portMAX_DELAY);
         if (xStatus == pdPASS)
         {
-            lcd_ctrl_write(receivedControl); // Send control instruction to LCD
+            instruction.pvFunction(instruction.pvParameter1, instruction.pvParameter2);
         }
-
-        // Check for strings
-        xStatus = xQueueReceive(xStringQueue, &receivedString, 5);
-        if (xStatus == pdPASS)
-        {
-            lcd_string_write(receivedString); // Write the string to the LCD
-        }
-        //xStatus = xQueueReceive(xLcdFunctionQueue, &instruction, 5);
-        //if (xStatus == pdPASS)
-        //{
-        //    instruction.pvFunction(instruction.pvParameter)
-        //}
-
-        vTaskDelay(pdMS_TO_TICKS(100)); // Small delay to avoid busy-waiting
+        
     }
 }

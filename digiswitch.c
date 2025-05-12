@@ -25,6 +25,8 @@ INT16U A = 0;
 INT16U B = 0;
 INT16U dir = 0;
 
+// object based drawing
+
 void vDigiswitchInit(void)
 {
     GPIO_PORTA_DEN_R |= PIN5 | PIN6; // enable pins 5 and 6 on port A
@@ -50,7 +52,7 @@ INT16U sReadB()
 void digiswitchInterruptHandler(void)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
+    BOOLEAN
 
     A = sReadA();   // read pin 5
     B = sReadB();   // read pin 6
@@ -64,6 +66,8 @@ void digiswitchInterruptHandler(void)
 
     GPIO_PORTA_ICR_R = PIN5;
 }
+
+
 
 void sIntToString(INT8U *buffer,INT16U displayPosition)
 {
