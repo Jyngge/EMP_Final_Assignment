@@ -19,6 +19,7 @@
 #define LCD_H_
 #include "emp_type.h"
 // Display instructions
+#define RESET_DISPLAY           0x30        
 #define CLEAR_DISPLAY           0x01
 #define HOME                    0x02
 #define MOVE_CURSOR_RIGHT       0x14
@@ -35,7 +36,6 @@
 #define CHAR_CLEAR              0x20
 #define CHAR_COLON              0x3A
 #define CENTER_DISPLAY          0x04        // to center clock string on display
-
 #define SEQUENCE_TERMINATOR     0xFF        // sequence terminator for init sequence
 
 typedef void (*FunctionPointer_t)(void *,void *);
@@ -48,18 +48,19 @@ typedef struct
 
 
 /***************** Functions ******************/
-void lcd_char_write(INT8U character);
-void lcd_ctrl_write(INT8U instruction);
+void lcd_char_write(INT8U *character);
+void lcd_ctrl_write(INT8U *instruction);
 void lcd_init_function(void);
 void lcd_clear_display(void);
 void lcd_home(INT8U page);
-void lcd_cursor_position(INT8U x, INT8U y);
+void lcd_cursor_position(INT8U *x, INT8U *y);
 void lcd_shift_display_right(INT8U shift);
 void lcd_shift_display_left(INT8U shift);
 void lcd_cursor_blink_on(void);
 void lcd_string_write(INT8U* charPTR);
 void lcd_time_write(INT8U* stringBuffer);
 void lcd_time_alive(INT8U i,INT8U state);
+void xPutLcdFunctionQueue(void *pvFunction, void *pvParameter1, void *pvParameter2);
 void vLCDTask(void *pvParameters);
 
 #endif /* LCD_H_ */
