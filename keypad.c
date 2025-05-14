@@ -32,6 +32,8 @@
 #define ROW_MASK    0x0F    //PE3, PE1, PE2, PE0
 #define COLUMN_MASK 0x1C    //PA4, PA3, PA2
 
+
+
 /***************** Constants ******************/
 const static INT8U keypad[4][3] = 
 {   //not the physical layout of the keypad
@@ -99,7 +101,7 @@ void vKeypadTestTask(void *pvParameters)
         xStatus = xQueueReceive(xKeypadQueue, &keyPressedTest, portMAX_DELAY);
         if(xStatus == pdPASS)
         {
-            lcd_char_write(keyPressedTest);
+            xPutLcdFunctionQueue(lcd_char_write, &keyPressedTest, NULL); // Send key press to LCD
         } else {
             lcd_string_write("Error receiving key press!");
         }
@@ -139,7 +141,6 @@ void vKeypadScanTask(void *pvParameters)
     while (1)
     {
         
-        xTaskNotifyWait(0x00, ULONG_MAX, &RecievdValue, portMAX_DELAY); // Wait for notification from interrupt handler
         
         i = 0;
 
