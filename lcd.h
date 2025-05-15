@@ -48,6 +48,7 @@ typedef struct
 
 
 /***************** Functions ******************/
+<<<<<<< HEAD
 
 void xPutLcdFunctionQueue(void *pvFunction, void *pvParameter1, void *pvParameter2);
 
@@ -65,5 +66,21 @@ void vlcdtestTask(void *pvParameters);
 
 
 
+=======
+void lcd_char_write(INT8U *character);
+void lcd_ctrl_write(INT8U *instruction);
+void lcd_init_function(void);
+void lcd_clear_display(void);
+void lcd_home(INT8U page);
+void lcd_cursor_position(INT8U *x, INT8U *y);
+void lcd_shift_display_right(INT8U shift);
+void lcd_shift_display_left(INT8U shift);
+void lcd_cursor_blink_on(void);
+void lcd_string_write(INT8U* charPTR);
+void lcd_time_write(INT8U* stringBuffer);
+void lcd_time_alive(INT8U i,INT8U state);
+void xPutLcdFunctionQueue(void *pvFunction, void *pvParameter1, void *pvParameter2);
+void vLCDTask(void *pvParameters);
+>>>>>>> 1a80f9f8fb1b2ea3a51933d18b18e4de410c9a53
 
 #endif /* LCD_H_ */

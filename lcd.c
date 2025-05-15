@@ -27,8 +27,11 @@
 #include "queue.h"
 #include "semphr.h"
 
+#include "semphr.h"
+
 /***************** Defines ********************/
 #define object_max_size 16
+
 
 
 typedef struct {
@@ -44,7 +47,19 @@ typedef struct {
 
 
 static INT8U LCD_init_sequence[] =
+
+static INT8U LCD_init_sequence[] =
 {
+    RESET_DISPLAY,       
+    RESET_DISPLAY,       
+    RESET_DISPLAY,       
+    SET_4BIT_MODE,
+    SET_4BIT_MODE + SET_2_LINE_DISPLAY,
+    SET_DISPLAY_MODE,
+    SET_CURSOR_INCREMENT,
+    CLEAR_DISPLAY,    
+    HOME,             
+    SEQUENCE_TERMINATOR
     RESET_DISPLAY,       
     RESET_DISPLAY,       
     RESET_DISPLAY,       
@@ -60,9 +75,11 @@ static INT8U LCD_init_sequence[] =
 /***************** Variables ******************/
 SemaphoreHandle_t xLcdQueueMutex;
 INT8U cursor_position = 0;
+SemaphoreHandle_t xLcdQueueMutex;
+INT8U cursor_position = 0;
 QueueHandle_t xLcdFunctionQueue;
 INT8U uCurrentPage = 0;
-
+INT8U LCDintialized = 0;
 
 /***************** Functions ******************/
 
@@ -105,8 +122,8 @@ void vLcdCharecterWrite(INT8U character)
  * Function : write character to current cursor position
  **********************************************/
 {
-    char highbyte = character & 0xF0;
-    char lowbyte = character << 4;
+    char highbyte = *character & 0xF0;
+    char lowbyte = *character << 4;
 
     cursor_position++;
 
@@ -180,10 +197,13 @@ void vLcdMoveCursor(INT8U x , INT8U y)
  **********************************************/
 {
     INT8U target_position = (*x)+(*y)*0x28;
+    INT8U target_position = (*x)+(*y)*0x28;
     
 
     if(target_position < cursor_position)
+    if(target_position < cursor_position)
     {
+        while (cursor_position - target_position)
         while (cursor_position - target_position)
         {
             vLcdControlWrite(MOVE_CURSOR_LEFT);
@@ -191,7 +211,9 @@ void vLcdMoveCursor(INT8U x , INT8U y)
         }
     }
     else if(target_position > cursor_position)
+    else if(target_position > cursor_position)
     {
+        while (target_position - cursor_position)
         while (target_position - cursor_position)
         {
             vLcdControlWrite(MOVE_CURSOR_RIGHT);
