@@ -130,8 +130,8 @@ void vTestTaskButtons(void *pvParameters)
             switch (xButton.event)
             {
                 case BE_SINGLE_PUSH:  
-                    xPutLcdFunctionQueue(lcd_clear_display, NULL, NULL);
-                    xPutLcdFunctionQueue(lcd_string_write, "Single Press!", NULL);
+                    xPutLcdFunctionQueue(vLcdClearDisplay, NULL, NULL);
+                    xPutLcdFunctionQueue(vLcdStringWrite, "Single Press!", NULL);
                     
                     //instructionWrite.pvParameter1 = "Single Press!";
                     //xQueueSend(xLcdFunctionQueue, &instructionClear, portMAX_DELAY);
@@ -140,16 +140,16 @@ void vTestTaskButtons(void *pvParameters)
 
                     break;
                 case BE_DOUBLE_PUSH:
-                    xPutLcdFunctionQueue(lcd_clear_display, NULL, NULL);
-                    xPutLcdFunctionQueue(lcd_string_write, "Double Press!", NULL);
+                    xPutLcdFunctionQueue(vLcdClearDisplay, NULL, NULL);
+                    xPutLcdFunctionQueue(vLcdStringWrite, "Double Press!", NULL);
                     //instructionWrite.pvParameter1 = "Double Press!";
                     //xQueueSend(xLcdFunctionQueue, &instructionClear, portMAX_DELAY);
                     //xQueueSend(xLcdFunctionQueue, &instructionWrite, portMAX_DELAY);
                     
                     break;
                 case BE_LONG_PUSH:
-                    xPutLcdFunctionQueue(lcd_clear_display, NULL, NULL);
-                    xPutLcdFunctionQueue(lcd_string_write, "Long Press!", NULL);
+                    xPutLcdFunctionQueue(vLcdClearDisplay, NULL, NULL);
+                    xPutLcdFunctionQueue(vLcdStringWrite, "Long Press!", NULL);
                     //instructionWrite.pvParameter1 = "Long Press!";
                     //xQueueSend(xLcdFunctionQueue, &instructionClear, portMAX_DELAY);
                     //xQueueSend(xLcdFunctionQueue, &instructionWrite, portMAX_DELAY);
