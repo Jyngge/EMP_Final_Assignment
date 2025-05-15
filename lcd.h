@@ -55,14 +55,17 @@ void vLcdInit(void);
 void vLcdCharecterWrite(INT8U character);
 void vLcdControlWrite(INT8U *instruction);
 void vLcdClearDisplay(void);
-void vLcdHome(INT8U page);
+void vLcdHome();
 void vLcdMoveCursor(INT8U x , INT8U y);
 void vLcdShiftDisplayRight(INT8U shift);
 void vLcdShiftDisplayLeft(INT8U shift);
 void vLcdStringWrite(INT8U* charPTR);
 void vlcdCursorOn(void);
 void vlcdtestTask(void *pvParameters);
+void vLCDTask(void *pvParameters);
 
+void lcdTestSendTask(void *pvParameters);
+void vLcdTestReciveTask(void *pvParameters);
 
 
 

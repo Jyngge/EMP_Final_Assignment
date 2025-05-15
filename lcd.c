@@ -12,7 +12,8 @@
 ******************************************************************************
 * Date    Id    Change
 * 040325  MAJUR Module created.
-* 110325  MAJUR removed functions which caused issues
+* 110325  MAJUR Removed functions which caused issues
+* 140525  MAJUR Complet refactor of code to implement FreeRtos
 *****************************************************************************/
 
 
@@ -29,7 +30,6 @@
 
 /***************** Defines ********************/
 #define object_max_size 16
-
 
 typedef struct {
     INT16U x;
@@ -74,11 +74,11 @@ void xPutLcdFunctionQueue(void *pvFunction, void *pvParameter1, void *pvParamete
  * Function : Gatekeeper function for the LCD.
  **********************************************/
 {
-    LcdFunction_t instruction = {
-    .pvFunction = (FunctionPointer_t) pvFunction,
-    .pvParameter1 = pvParameter1,
-    .pvParameter2 = pvParameter2
-    };
+    LcdFunction_t *instruction = (LcdFunction_t *)pvPortMalloc(sizeof(LcdFunction_t));
+    instruction->pvFunction = (FunctionPointer_t) pvFunction;
+    instruction->pvParameter1 = pvParameter1;
+    instruction->pvParameter2 = pvParameter2;
+
     xQueueSend(xLcdFunctionQueue, &instruction, portMAX_DELAY);
 }
 
@@ -158,7 +158,7 @@ void vLcdClearDisplay(void)
     vLcdControlWrite((INT8U)CLEAR_DISPLAY);
 }
 
-void vLcdHome(INT8U page)
+void vLcdHome()
 /**********************************************
  * Input    :
  * Output   :
@@ -176,10 +176,12 @@ void vLcdMoveCursor(INT8U x , INT8U y)
 /**********************************************
  * Input    : Target position
  * Output   :
- * Function : Moves cursor to target position from current position
+ * Function : Moves cursor to target position from current position.
+ *            Line 1: 00 01 02 03... 39
+ *            line 2: 40 41 42 43... 79
  **********************************************/
 {
-    INT8U target_position = (*x)+(*y)*0x28;
+    INT8U target_position = (x)+(y)*0x28;
     
 
     if(target_position < cursor_position)
@@ -277,7 +279,7 @@ typedef struct
 
 
 
-void lcdSendTask(void *pvParameters)
+void lcdTestSendTask(void *pvParameters)
 {
     UIObject_t *object = (UIObject_t *) pvPortMalloc(sizeof(UIObject_t));
     object->x = 0;
@@ -299,14 +301,23 @@ void lcdSendTask(void *pvParameters)
     }
 }
 
-void vLcdTestTask(void *pvParameters)
+void vLcdFreeInstruction(LcdFunction_t *instruction)
 {
-    UIObject_t object;
-    object.x = 0;
-    object.y = 0;
+    instruction->pvFunction = NULL;
+    vPortFree(instruction->pvParameter1);
+    vPortFree(instruction->pvParameter2);
+    vPortFree(instruction);
+}
+
+void vLcdTestReciveTask(void *pvParameters)
+{
+    
+    LcdFunction_t *instruction;
+    
 
     while (1)
-    {   
+    {
+        xQueueReceive(xLcdFunctionQueue, &instruction,portMAX_DELAY);
         
         vLcdClearDisplay();
         vLcdHome(0);
@@ -336,5 +347,8 @@ void vLcdTestTask(void *pvParameters)
         vLcdStringWrite("FreeRTOS");
         vTaskDelay(pdMS_TO_TICKS(1000));
 
+        vLcdFreeInstruction(instruction)
+       
     }
+
 }
