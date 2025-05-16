@@ -48,6 +48,7 @@ const static INT8U keypad[4][3] =
 INT16U keyPressed;                   // Key pressed
 INT16U row, column;                  // Row and column indices
 QueueHandle_t xKeypadQueue;         // Queue to send key presses
+extern QueueHandle_t xLcdFunctionQueue;
 TaskHandle_t xKeypadTaskHandle;     // Handle for the keypad task
 
 
@@ -80,10 +81,13 @@ void vKeypadInit(void)
 
     xKeypadQueue = xQueueCreate(5, sizeof(INT8U));
     if (xKeypadQueue == NULL) {
-        lcd_string_write("keypadQueue creation failed!");
+        vLcdStringWrite("Error Creating Queue");
         while (1); 
     }
 }
+
+
+
 
 void vKeypadTestTask(void *pvParameters)
 /**********************************************
@@ -95,15 +99,19 @@ void vKeypadTestTask(void *pvParameters)
 {
     INT8U keyPressedTest;
     BaseType_t xStatus;
-
+    LcdMessage_t instruction;
     while(1) {
         
         xStatus = xQueueReceive(xKeypadQueue, &keyPressedTest, portMAX_DELAY);
         if(xStatus == pdPASS)
         {
-            xPutLcdFunctionQueue(lcd_char_write, &keyPressedTest, NULL); // Send key press to LCD
-        } else {
-            lcd_string_write("Error receiving key press!");
+            instruction.cmd = lcdWriteChar;
+            instruction.params.charecter = keyPressedTest;
+            xQueueSend(xLcdFunctionQueue,&instruction,portMAX_DELAY);
+        } 
+        else 
+        {
+
         }
 
 

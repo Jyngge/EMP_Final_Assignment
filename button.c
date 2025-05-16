@@ -118,13 +118,13 @@ void button_task( void *pvParameters )
 	}
 	else
 	{
-		lcd_string_write("Error assigning button event queue!");
+		vLcdStringWrite("Error assigning button event queue!");
 	}
 
 	xButtonTimeOutTimer = xTimerCreate( "LPTimeout", pdMS_TO_TICKS( 2000 ), ONE_SHOT, &xButton, vLongPushCallback);
 	if( xButtonTimeOutTimer == NULL )
 	{
-		lcd_string_write("Timer creation failed!");
+		vLcdStringWrite("Timer creation failed!");
 		while(1); 
 	}
 

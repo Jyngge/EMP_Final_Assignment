@@ -105,7 +105,7 @@ void vDigiswitchTask(void *pvParameters)
             displayPosition--;
         }
         sIntToString(buffer,displayPosition);
-        lcd_string_write(buffer);
+        vLcdStringWrite(buffer);
     }
 }
 

@@ -20,45 +20,19 @@
 /***************** Include files **************/
 
 #include <lcd.h>
-#include <stdint.h>
-#include "tm4c123gh6pm.h"
-#include "emp_type.h"
-#include "FreeRTOS.h"
-#include "task.h"
-#include "queue.h"
-#include "semphr.h"
 
-#include "semphr.h"
+
 
 /***************** Defines ********************/
-#define object_max_size 16
+#define object_max_size 15
 
-typedef struct {
-    INT16U x;
-    INT16U y;
-    INT8U ucUpdateBuffer[object_max_size];
-    INT8U ucBuffer[object_max_size];
-    INT16U ulSize;
-} object_t;
+
 
 
 /***************** Constants ******************/
 
-
-static INT8U LCD_init_sequence[] =
-
 static INT8U LCD_init_sequence[] =
 {
-    RESET_DISPLAY,       
-    RESET_DISPLAY,       
-    RESET_DISPLAY,       
-    SET_4BIT_MODE,
-    SET_4BIT_MODE + SET_2_LINE_DISPLAY,
-    SET_DISPLAY_MODE,
-    SET_CURSOR_INCREMENT,
-    CLEAR_DISPLAY,    
-    HOME,             
-    SEQUENCE_TERMINATOR
     RESET_DISPLAY,       
     RESET_DISPLAY,       
     RESET_DISPLAY,       
@@ -74,29 +48,96 @@ static INT8U LCD_init_sequence[] =
 /***************** Variables ******************/
 SemaphoreHandle_t xLcdQueueMutex;
 INT8U cursor_position = 0;
-SemaphoreHandle_t xLcdQueueMutex;
-INT8U cursor_position = 0;
 QueueHandle_t xLcdFunctionQueue;
-INT8U uCurrentPage = 0;
-INT8U LCDintialized = 0;
 
 /***************** Functions ******************/
+//typedef struct {
+//    INT8U x;
+//    INT8U y;
+//    INT8U *ucUpdateBuffer;
+//    INT8U *ucBuffer;
+//} LcdStringObject_t;
+//
+//typedef struct {
+//    INT16U value;
+//    INT16U updateValue;
+//    INT8U x;
+//    INT8U y;
+//} LcdIntObject_t;
+//
+//typedef LcdIntObject_t* LcdIntObjectHandle_t;
+//typedef LcdStringObject_t* LcdStringObjectHandle_t;
+//
+//LcdStringObjectHandle_t xLcdStringObjectCreate(INT8U x, INT8U y, INT8U *ucBuffer)
+//{
+//    LcdStringObjectHandle_t pxLcdObject = (LcdStringObjectHandle_t) pvPortMalloc(sizeof(LcdStringObject_t));
+//    if (pxLcdObject == NULL)
+//    {
+//        return NULL;
+//    }
+//
+//    pxLcdObject->x = x;
+//    pxLcdObject->y = y;
+//    pxLcdObject->ucBuffer = (INT8U *) pvPortMalloc(object_max_size + 1);
+//    pxLcdObject->ucUpdateBuffer = (INT8U *) pvPortMalloc(object_max_size + 1);
+//
+//    if (pxLcdObject->ucBuffer == NULL || pxLcdObject->ucUpdateBuffer == NULL)
+//    {
+//        vPortFree(pxLcdObject->ucBuffer);
+//        vPortFree(pxLcdObject->ucUpdateBuffer);
+//        vPortFree(pxLcdObject);
+//        return NULL;
+//    }
+//
+//    memset(pxLcdObject->ucBuffer, 0, object_max_size + 1);
+//    memset(pxLcdObject->ucUpdateBuffer, 0, object_max_size + 1);
+//
+//    return pxLcdObject;
+//}
+//
+//void xLcdStringObjectDelete(LcdStringObjectHandle_t pxLcdObject)
+//{
+//    vPortFree(pxLcdObject->ucBuffer);
+//    vPortFree(pxLcdObject->ucUpdateBuffer);
+//    vPortFree(pxLcdObject);
+//}
+//
+//void vLcdStringObjectWrite(LcdStringObjectHandle_t pxLcdObject, INT8U *ucString)
+//{
+//    INT8U i = 0;
+//    while (ucString[i] != '\0' && i < object_max_size)
+//    {
+//        pxLcdObject->ucUpdateBuffer[i] = ucString[i++];
+//    }
+//}
+//
+//LcdIntObjectHandle_t xLcdIntObjectCreate(INT8U x, INT8U y, INT16U value)
+//{
+//    LcdIntObjectHandle_t pxLcdObject = (LcdIntObjectHandle_t) pvPortMalloc(sizeof(LcdIntObject_t));
+//    if (pxLcdObject == NULL)
+//    {
+//        return NULL;
+//    }
+//    
+//    pxLcdObject->x = x;
+//    pxLcdObject->y = y;
+//    pxLcdObject->value = 0;
+//    pxLcdObject->updateValue = value;
+//
+//    return pxLcdObject;
+//}
+//
+//void xLcdIntObjectDelete(LcdIntObjectHandle_t pxLcdObject)
+//{
+//    vPortFree(pxLcdObject);
+//}
+//
+//void vLcdIntObjectWrite(LcdIntObjectHandle_t pxLcdObject, INT16U value)
+//{
+//    pxLcdObject->updateValue = value;
+//}
 
 
-void xPutLcdFunctionQueue(void *pvFunction, void *pvParameter1, void *pvParameter2)
-/**********************************************
- * Input    : lcd function pointer and parameters
- * Output   :
- * Function : Gatekeeper function for the LCD.
- **********************************************/
-{
-    LcdFunction_t *instruction = (LcdFunction_t *)pvPortMalloc(sizeof(LcdFunction_t));
-    instruction->pvFunction = (FunctionPointer_t) pvFunction;
-    instruction->pvParameter1 = pvParameter1;
-    instruction->pvParameter2 = pvParameter2;
-
-    xQueueSend(xLcdFunctionQueue, &instruction, portMAX_DELAY);
-}
 
 
 void vLcdInit(void)
@@ -108,10 +149,13 @@ void vLcdInit(void)
 {
     vTaskSuspendAll();
     INT16U i = 0;
+    INT16U j = 0;
     while (LCD_init_sequence[i] != SEQUENCE_TERMINATOR)
-        vLcdControlWrite(&LCD_init_sequence[i++]);
-    for(i = 0; i<16000;i++);
-    vTaskResumeAll();
+    {
+        vLcdControlWrite(LCD_init_sequence[i++]);
+        for(j = 0; j<3000;j++);
+    }
+    xTaskResumeAll();
 }
 
 void vLcdCharecterWrite(INT8U character)
@@ -120,22 +164,23 @@ void vLcdCharecterWrite(INT8U character)
  * Output   :
  * Function : write character to current cursor position
  **********************************************/
-{
-    char highbyte = *character & 0xF0;
-    char lowbyte = *character << 4;
+{  
+    TickType_t xLastWakeTime;
 
-    cursor_position++;
+    cursor_position++;                      // Increment cursor position
 
-    GPIO_PORTC_DATA_R = highbyte;
-    GPIO_PORTD_DATA_R |= (1<<2);            // Select IR register
+    GPIO_PORTC_DATA_R = character & 0xF0;;  // Send high nibble
+    GPIO_PORTD_DATA_R |= (1<<2);            // Select DR Register, write
     GPIO_PORTD_DATA_R |= (1<<3);            // Set E High
     GPIO_PORTD_DATA_R &= ~(1<<3);           // Set E Low
 
-    GPIO_PORTC_DATA_R = lowbyte;
+    GPIO_PORTC_DATA_R = character << 4;;    // Send low nibble
     GPIO_PORTD_DATA_R |= (1<<3);            // Set E High
     GPIO_PORTD_DATA_R &= ~(1<<3);           // Set E Low
     
-    vTaskDelay(pdMS_TO_TICKS(25));
+    xLastWakeTime = xTaskGetTickCount();
+    vTaskDelayUntil(&xLastWakeTime,pdMS_TO_TICKS(30));
+    //vTaskDelay(pdMS_TO_TICKS(25));
 }
 
 
@@ -146,21 +191,21 @@ void vLcdControlWrite(INT8U instruction)
  * Function : Load instruction in the IR register
  **********************************************/
 {
-    char lowByte = instruction << 4;
-    char highByte = instruction & 0xF0;
+    TickType_t xLastWakeTime; 
 
     GPIO_PORTD_DATA_R &= ~(1 << 2);         // Select DR Register, write
 
-    GPIO_PORTC_DATA_R = highByte;
+    GPIO_PORTC_DATA_R = instruction & 0xF0;;
     GPIO_PORTD_DATA_R |= (1<<3);            // Set E High
     GPIO_PORTD_DATA_R &= ~(1<<3);           // Set E Low
 
-    GPIO_PORTC_DATA_R = lowByte;
+    GPIO_PORTC_DATA_R = instruction << 4;;
     GPIO_PORTD_DATA_R |= (1<<3);            // Set E High
     GPIO_PORTD_DATA_R &= ~(1<<3);           // Set E Low
 
-    vTaskDelay(pdMS_TO_TICKS(25));
-    
+    xLastWakeTime = xTaskGetTickCount();
+    vTaskDelayUntil(&xLastWakeTime,pdMS_TO_TICKS(30));
+    //vTaskDelay(pdMS_TO_TICKS(25));
 }
 
 
@@ -172,6 +217,7 @@ void vLcdClearDisplay(void)
  **********************************************/
 {
     vLcdControlWrite((INT8U)CLEAR_DISPLAY);
+    cursor_position = 0;
 }
 
 void vLcdHome()
@@ -181,10 +227,8 @@ void vLcdHome()
  * Function : Moves cursor to position 0
  **********************************************/
 {
-    
     vLcdControlWrite(HOME);     
-    cursor_position = 0;  
-    
+    cursor_position = 0;     
 }
 
 
@@ -199,11 +243,9 @@ void vLcdMoveCursor(INT8U x , INT8U y)
 {
     INT8U target_position = (x)+(y)*0x28;
     
-
-    if(target_position < cursor_position)
     if(target_position < cursor_position)
     {
-        while (cursor_position - target_position)
+        
         while (cursor_position - target_position)
         {
             vLcdControlWrite(MOVE_CURSOR_LEFT);
@@ -211,9 +253,8 @@ void vLcdMoveCursor(INT8U x , INT8U y)
         }
     }
     else if(target_position > cursor_position)
-    else if(target_position > cursor_position)
     {
-        while (target_position - cursor_position)
+        
         while (target_position - cursor_position)
         {
             vLcdControlWrite(MOVE_CURSOR_RIGHT);
@@ -232,7 +273,7 @@ void vLcdShiftDisplayRight(INT8U shift)
  **********************************************/
 {
     while (shift--)
-        lcd_ctrl_write(SHIFT_DISPLAY_RIGHT);   
+        vLcdControlWrite(SHIFT_DISPLAY_RIGHT);   
 }
 void vLcdShiftDisplayLeft(INT8U shift)
 /**********************************************
@@ -270,105 +311,88 @@ void vLcdStringWrite(INT8U* charPTR)
 
     }
 }
+void lcdSendCommand(LcdCommand_t cmd, TickType_t ticksToWait)
+{
+    LcdMessage_t msg;
+    msg.cmd = cmd;
+    xQueueSend(xLcdFunctionQueue, &msg, ticksToWait);
+}
 
+void lcdSendWriteString(INT8U *str, TickType_t ticksToWait) {
+    LcdMessage_t msg;
+    msg.cmd = lcdWriteString;
+    msg.params.string = str;
+    xQueueSend(xLcdFunctionQueue, &msg, ticksToWait);
+}
+
+void lcdSendMoveCursor(INT8U x, INT8U y, TickType_t ticksToWait) {
+    LcdMessage_t msg;
+    msg.cmd = lcdMoveCursor;
+    msg.params.x = x;
+    msg.params.y = y;
+    xQueueSend(xLcdFunctionQueue, &msg, ticksToWait);
+}
+
+void lcdSendWriteChar(INT8U c, TickType_t ticksToWait) {
+    LcdMessage_t msg;
+    msg.cmd = lcdWriteChar;
+    msg.params.charecter = c;
+    xQueueSend(xLcdFunctionQueue, &msg, ticksToWait);
+}
+
+void vLcdTaskTester(void *pvParameters)
+{
+    INT8U x = 0;
+    while(1)
+    {
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
+        lcdSendMoveCursor(x++,0,portMAX_DELAY);
+        lcdSendWriteChar('a',portMAX_DELAY);
+    }
+
+}
 
 
 void vLCDTask(void *pvParameters)
 {
-    LcdFunction_t instruction;
     BaseType_t xStatus;
-    vLcdInit(); // Initialize the LCD
-    while (1)
-    {
-        xStatus = xQueueReceive(xLcdFunctionQueue, &instruction, portMAX_DELAY);
-        if (xStatus == pdPASS)
-        {
-            instruction.pvFunction(instruction.pvParameter1, instruction.pvParameter2);
-        }   
-    }
-}
-
-
-typedef struct
-{
-    INT8U x;
-    INT8U y;
-    INT8U ucBuffer[8];
-    INT8U ucUpdateBuffer[8];
-} UIObject_t;
-
-
-
-void lcdTestSendTask(void *pvParameters)
-{
-    UIObject_t *object = (UIObject_t *) pvPortMalloc(sizeof(UIObject_t));
-    object->x = 0;
-    object->y = 0;
-    strcpy(object->ucBuffer, "Test");
-    strcpy(object->ucUpdateBuffer, "LCD");
-
-    INT8U testChar = 'A';
-    INT8U testChar2 = 'B';
-
+    LcdMessage_t instruction;
+    vLcdInit();
     while(1)
     {
-        
-        xPutLcdFunctionQueue(vLcdMoveCursor, &object->x, &object->y);
-        xPutLcdFunctionQueue(vLcdStringWrite, object->ucBuffer, NULL);;
-        takeMutex(xLcdQueueMutex);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        xQueueReceive(xLcdFunctionQueue,&instruction,portMAX_DELAY);
 
-    }
-}
+        switch (instruction.cmd)
+        {
+        case lcdClearDisplay:
+            vLcdClearDisplay();
+        break;
 
-void vLcdFreeInstruction(LcdFunction_t *instruction)
-{
-    instruction->pvFunction = NULL;
-    vPortFree(instruction->pvParameter1);
-    vPortFree(instruction->pvParameter2);
-    vPortFree(instruction);
-}
-
-void vLcdTestReciveTask(void *pvParameters)
-{
-    
-    LcdFunction_t *instruction;
-    
-
-    while (1)
-    {
-        xQueueReceive(xLcdFunctionQueue, &instruction,portMAX_DELAY);
-        
-        vLcdClearDisplay();
-        vLcdHome(0);
-
-        vLcdMoveCursor(&object.x,&object.y);
-        vLcdCharecterWrite("H");
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-        object.x = 2;
-        vLcdMoveCursor(&object.x,&object.y);
-        vLcdCharecterWrite("o");
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-        object.y = 1;
-        vLcdMoveCursor(&object.x,&object.y);
-        vLcdCharecterWrite("l");
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-        object.x = 0;
-        vLcdMoveCursor(&object.x,&object.y);
-        vLcdCharecterWrite("a");
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-        vLcdClearDisplay();
-        vLcdHome();
-
-        vLcdStringWrite("FreeRTOS");
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-        vLcdFreeInstruction(instruction)
+        case lcdHome:
+            vLcdHome();
+        break;
+        case lcdMoveCursor:
+            vLcdMoveCursor(instruction.params.x, instruction.params.y);
+        break;
+        case lcdWriteChar:
+            vLcdCharecterWrite(instruction.params.charecter);
+        break;
+        case lcdWriteString:
+        vLcdCharecterWrite(instruction.params.string);
+        if(instruction.params.string != NULL)
+        {
+            vPortFree(instruction.params.string);
+        }
+        break;
+        default:
+            break;
+        }
        
     }
 
 }
+
+
+
+

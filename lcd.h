@@ -17,7 +17,14 @@
 
 #ifndef LCD_H_
 #define LCD_H_
+
+#include <stdint.h>
+#include "tm4c123gh6pm.h"
 #include "emp_type.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
 // Display instructions
 #define RESET_DISPLAY           0x30        
 #define CLEAR_DISPLAY           0x01
@@ -38,23 +45,39 @@
 #define CENTER_DISPLAY          0x04        // to center clock string on display
 #define SEQUENCE_TERMINATOR     0xFF        // sequence terminator for init sequence
 
-typedef void (*FunctionPointer_t)(void *,void *);
-typedef struct
+
+typedef enum lcdCommand
 {
-    FunctionPointer_t pvFunction;
-    void *pvParameter1;
-    void *pvParameter2;
-}LcdFunction_t;
+    lcdClearDisplay,
+    lcdHome,
+    lcdMoveCursor,
+    lcdWriteChar,
+    lcdWriteString,
+} LcdCommand_t;
+
+typedef struct {
+    LcdCommand_t cmd;
+    union 
+    {
+        INT8U* string;
+        struct {INT8U x, y;};
+        INT8U charecter;
+        INT16U value;
+    } params;
+} LcdMessage_t;
 
 
 /***************** Functions ******************/
-<<<<<<< HEAD
 
-void xPutLcdFunctionQueue(void *pvFunction, void *pvParameter1, void *pvParameter2);
+
+void lcdSendWriteString(INT8U *str, TickType_t ticksToWait);
+void lcdSendMoveCursor(INT8U x, INT8U y, TickType_t ticksToWait);
+void lcdSendWriteChar(INT8U c, TickType_t ticksToWait);
+void lcdSendCommand(LcdCommand_t cmd, TickType_t ticksToWait);
 
 void vLcdInit(void);
 void vLcdCharecterWrite(INT8U character);
-void vLcdControlWrite(INT8U *instruction);
+void vLcdControlWrite(INT8U instruction);
 void vLcdClearDisplay(void);
 void vLcdHome();
 void vLcdMoveCursor(INT8U x , INT8U y);
@@ -62,28 +85,8 @@ void vLcdShiftDisplayRight(INT8U shift);
 void vLcdShiftDisplayLeft(INT8U shift);
 void vLcdStringWrite(INT8U* charPTR);
 void vlcdCursorOn(void);
-void vlcdtestTask(void *pvParameters);
+void vLcdTaskTester(void *pvParameters);
 void vLCDTask(void *pvParameters);
 
-void lcdTestSendTask(void *pvParameters);
-void vLcdTestReciveTask(void *pvParameters);
-
-
-=======
-void lcd_char_write(INT8U *character);
-void lcd_ctrl_write(INT8U *instruction);
-void lcd_init_function(void);
-void lcd_clear_display(void);
-void lcd_home(INT8U page);
-void lcd_cursor_position(INT8U *x, INT8U *y);
-void lcd_shift_display_right(INT8U shift);
-void lcd_shift_display_left(INT8U shift);
-void lcd_cursor_blink_on(void);
-void lcd_string_write(INT8U* charPTR);
-void lcd_time_write(INT8U* stringBuffer);
-void lcd_time_alive(INT8U i,INT8U state);
-void xPutLcdFunctionQueue(void *pvFunction, void *pvParameter1, void *pvParameter2);
-void vLCDTask(void *pvParameters);
->>>>>>> 1a80f9f8fb1b2ea3a51933d18b18e4de410c9a53
 
 #endif /* LCD_H_ */

@@ -111,57 +111,7 @@ static void setupHardware(void)
 
 
 
-void vTestTaskButtons(void *pvParameters)
-{
-    // One press adds 1 to buffer, double press adds 5, long press adds 10
 
-    BaseType_t xStatus;
-    ButtonState_t xButton;
-    QueueHandle_t xButtonEventQueue;
-    xButtonEventQueue = *(QueueHandle_t *) pvParameters;
-    while (1)
-    {
-
-        xStatus = xQueueReceive(xButtonEventQueue, &xButton.event, portMAX_DELAY);
-
-        if (xStatus == pdPASS)
-        {
-            
-            switch (xButton.event)
-            {
-                case BE_SINGLE_PUSH:  
-                    xPutLcdFunctionQueue(vLcdClearDisplay, NULL, NULL);
-                    xPutLcdFunctionQueue(vLcdStringWrite, "Single Press!", NULL);
-                    
-                    //instructionWrite.pvParameter1 = "Single Press!";
-                    //xQueueSend(xLcdFunctionQueue, &instructionClear, portMAX_DELAY);
-                    //xQueueSend(xLcdFunctionQueue, &instructionWrite, portMAX_DELAY);
-                    
-
-                    break;
-                case BE_DOUBLE_PUSH:
-                    xPutLcdFunctionQueue(vLcdClearDisplay, NULL, NULL);
-                    xPutLcdFunctionQueue(vLcdStringWrite, "Double Press!", NULL);
-                    //instructionWrite.pvParameter1 = "Double Press!";
-                    //xQueueSend(xLcdFunctionQueue, &instructionClear, portMAX_DELAY);
-                    //xQueueSend(xLcdFunctionQueue, &instructionWrite, portMAX_DELAY);
-                    
-                    break;
-                case BE_LONG_PUSH:
-                    xPutLcdFunctionQueue(vLcdClearDisplay, NULL, NULL);
-                    xPutLcdFunctionQueue(vLcdStringWrite, "Long Press!", NULL);
-                    //instructionWrite.pvParameter1 = "Long Press!";
-                    //xQueueSend(xLcdFunctionQueue, &instructionClear, portMAX_DELAY);
-                    //xQueueSend(xLcdFunctionQueue, &instructionWrite, portMAX_DELAY);
-                    
-                    break;
-                default:
-                    lcd_string_write("failed to parse ButtonEvent");
-                    while(1);
-            }
-        }
-    }
-}
 enum elevatorState
 {
     ELEVATOR_inital,
@@ -207,7 +157,7 @@ void usEleveatorState(INT16U state)
             state = PIN5;
             break;
         default:
-            lcd_string_write("failed to parse ElevatorState");
+            vLcdStringWrite("failed to parse ElevatorState");
             while(1);
     }
 }
@@ -236,30 +186,30 @@ int main(void)
   
   xLcdQueueMutex = xSemaphoreCreateMutex();
   if(xLcdQueueMutex == NULL){
-    lcd_string_write("Mutex creation failed!");
+      vLcdStringWrite("Mutex creation failed!");
     while(1);
   }
 
   xButtonEventQueue_SW4 = xQueueCreate(5, sizeof(INT8U));
   if(xButtonEventQueue_SW4 == NULL){
-    lcd_string_write("Queue creation failed!");
+      vLcdStringWrite("Queue creation failed!");
     while(1);
   }
 
   xButtonEventQueue_SW0 = xQueueCreate(5, sizeof(INT8U));
   if(xButtonEventQueue_SW0 == NULL){
-    lcd_string_write("Queue creation failed!");
+      vLcdStringWrite("Queue creation failed!");
     while(1);
   }
-  xLcdFunctionQueue = xQueueCreate(15, sizeof(LcdFunction_t));
+  xLcdFunctionQueue = xQueueCreate(15, sizeof(LcdMessage_t));
   if (xLcdFunctionQueue == NULL)
   {
-      lcd_string_write("Queue creation failed!");
+      vLcdStringWrite("Queue creation failed!");
       while (1);
   }
 
   xTaskCreate(vLCDTask, "LCD", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
-
+  xTaskCreate(vLcdTaskTester,"LCD Test", USERTASK_STACK_SIZE, NULL, LOW_PRIO,NULL);
   xTaskCreate(status_led_task, "Status LED", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
   //xTaskCreate(button_task, "Button1", USERTASK_STACK_SIZE, &temp1, HIGH_PRIO, &xButtonTaskHandle_SW4);
   //xTaskCreate(button_task, "Button2", USERTASK_STACK_SIZE, &temp2, HIGH_PRIO, &xButtonTaskHandle_SW0);
