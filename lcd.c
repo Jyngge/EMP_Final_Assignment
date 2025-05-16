@@ -305,10 +305,9 @@ void vLcdStringWrite(INT8U* charPTR)
 {
 
     int i =0;
-    while (charPTR[i] != '\0')
+    while (*(charPTR+i) != '\0')
     {
-        vLcdCharecterWrite(charPTR[i++]);
-
+        vLcdCharecterWrite(*(charPTR+(i++)));
     }
 }
 void lcdSendCommand(LcdCommand_t cmd, TickType_t ticksToWait)
@@ -343,12 +342,15 @@ void lcdSendWriteChar(INT8U c, TickType_t ticksToWait) {
 void vLcdTaskTester(void *pvParameters)
 {
     INT8U x = 0;
+    
     while(1)
     {
+        INT8U *string = pvPortMalloc(sizeof(INT8U)*10);
+        strcpy(string,"help!");
         vTaskDelay(pdMS_TO_TICKS(2000));
         lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
         lcdSendMoveCursor(x++,0,portMAX_DELAY);
-        lcdSendWriteChar('a',portMAX_DELAY);
+        lcdSendWriteString(string,portMAX_DELAY);
     }
 
 }
@@ -379,7 +381,7 @@ void vLCDTask(void *pvParameters)
             vLcdCharecterWrite(instruction.params.charecter);
         break;
         case lcdWriteString:
-        vLcdCharecterWrite(instruction.params.string);
+        vLcdStringWrite(instruction.params.string);
         if(instruction.params.string != NULL)
         {
             vPortFree(instruction.params.string);

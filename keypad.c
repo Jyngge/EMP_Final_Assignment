@@ -146,9 +146,10 @@ void vKeypadScanTask(void *pvParameters)
     INT32U RecievdValue;
     
 
-    while (1)
+    while(1)
     {
         
+        xTaskNotifyWait(0x00, ULONG_MAX, &RecievdValue, portMAX_DELAY); // Wait for notification from interrupt handler
         
         i = 0;
 
@@ -184,4 +185,3 @@ void vKeypadScanTask(void *pvParameters)
                                  
     }
 }
-
