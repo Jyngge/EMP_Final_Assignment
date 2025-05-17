@@ -19,12 +19,19 @@
 #include "lcd.h"
 #include <limits.h>
 
+#define ENCODER_FLOOR_SELECT    0x01
+#define ENCODER_360             0x02
+#define ENCODER_EVENT_FLAGS     0x03
+
+
 TaskHandle_t xDigiSwitchTaskHandle;
 INT16S postion = 2;
 INT16U A = 0;
 INT16U B = 0;
 INT16U dir = 0;
 extern QueueHandle_t xLcdFunctionQueue;
+extern EventGroupHandle_t xUIEventGroup;
+extern INT16U ulTargetFloor;
 
 // object based drawing
 
@@ -67,7 +74,6 @@ void vRoteryEncoderSuspend(void)
 void digiswitchInterruptHandler(void)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    BOOLEAN
 
     A = sReadA();   // read pin 5
     B = sReadB();   // read pin 6
@@ -83,8 +89,7 @@ void digiswitchInterruptHandler(void)
 }
 
 
-
-void sIntToString(INT8U *buffer,INT16U displayPosition)
+void vIntToString(INT8U *buffer,INT16U displayPosition)
 {
     INT16U temp = displayPosition;
     INT16U i = 0;
@@ -104,30 +109,53 @@ void sIntToString(INT8U *buffer,INT16U displayPosition)
 
 void vDigiswitchTask(void *pvParameters)
 {
-    static INT8U buffer[5];
     
+    EventBits_t xEventGroupValue;
+    const EventBits_t xBitsToWaitFor = ( ENCODER_360 | ENCODER_FLOOR_SELECT );
+    
+    static INT8U buffer[5];
     buffer[4] = '\0';
     INT16S displayPosition = postion; // output value counting to positon value
     
     while (1)
     {
+        
+
+        xEventGroupValue = xEventGroupWaitBits(xUIEventGroup,xBitsToWaitFor,pdFALSE,pdFALSE,portMAX_DELAY);
+        xTaskNotifyStateClear(xDigiSwitchTaskHandle);
         ulTaskNotifyTake(pdFALSE , portMAX_DELAY);
-        
-        
-       if(displayPosition < postion)
-       {
-           displayPosition++;
-       }
-       if(displayPosition > postion)
-       {
-           displayPosition--;
-       }
-       sIntToString(buffer,displayPosition);
-       // need to take a mutex
-       lcdSendMoveCursor(1,1,portMAX_DELAY);
-       lcdSendWriteString(buffer,2);
-    
+
+        if(xEventGroupValue & ENCODER_FLOOR_SELECT)
+        {
+            if(postion == 13)
+                postion++;
+            if(postion < 0 )
+                postion = 0;
+            if(postion > 20 )
+                postion = 20;
+        }
+
+        if(xEventGroupValue & ENCODER_360)
+        {
+            if(postion < 0 )
+                postion = 0;
+            if(postion > 360 )
+                postion = 360;
             
+        }
+            
+        if(displayPosition < postion)
+        {
+            displayPosition++;
+        }
+        if(displayPosition > postion)
+        {
+            displayPosition--;
+        }
+
+        vIntToString(buffer,displayPosition);
+        lcdSendMoveCursor(1,1,portMAX_DELAY);
+        lcdSendWriteString(buffer,2);
     }
 }
 

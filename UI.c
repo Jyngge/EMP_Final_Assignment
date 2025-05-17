@@ -28,6 +28,7 @@
 #include "digiswitch.h"
 #include <string.h>
 #include "math.h"
+#include "event_groups.h"
 /***************** Defines ********************/
 #define PASSWORD_LENGTH 4
 #define ARROW_UP        0x18
@@ -38,6 +39,7 @@ extern QueueHandle_t xKeypadQueue;
 extern QueueHandle_t xLcdFunctionQueue;
 extern QueueHandle_t xButtonEventQueue_SW4;
 extern QueueHandle_t xButtonEventQueue_SW0;
+EventGroupHandle_t xUIEventGroup;
 INT16U ulCurrentFloor = 2;
 INT16U ulTargetFloor = 0;
 INT16U ulTripCount;
@@ -87,11 +89,12 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
     static INT8S i;
     static INT8U ucPasswordBuffer[4];
     static INT8U distance;
+    static BOOLEAN EncodeDirection = 0;
 
     switch(state){
     case idle:
-        lcdSendMoveCursor(0,1,5);
-        xStatus = xQueueReceive(xKeypadQueue,&ucKeypadPress,1);
+        
+        xStatus = xQueueReceive(xKeypadQueue,&ucKeypadPress,0);
         if(xStatus == pdPASS)
         {
             state = inputCode;
@@ -103,7 +106,7 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
         }
         else
         {
-            xQueueReceive(xButtonEventQueue_SW4,&ucButtonPress,1);
+            xQueueReceive(xButtonEventQueue_SW4,&ucButtonPress,0);
             if(ucButtonPress == BE_LONG_PUSH)
             {
                 if(ulCurrentFloor == ulTargetFloor)
@@ -141,6 +144,7 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
                 state = idle;
                 lcdSendMoveCursor(0,1,2);
                 lcdSendWriteString("    ",2);
+                lcdSendMoveCursor(0,1,5);
             }
 
         }
@@ -174,7 +178,7 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
         else
         {
             distance = ulCurrentFloor - ulTargetFloor;
-            lcdSendWriteChar((INT8U)ARROW_DOWN,2);
+            lcdSendWriteChar(0b00011001,2);
         }
         // notify led task and wait for respons
         xQueueReceive(xButtonEventQueue_SW0, &ucButtonPress,portMAX_DELAY);
@@ -184,19 +188,42 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
             state = broken;
         }
         state = idle;
+        lcdSendMoveCursor(0,1,5);
     break;
     case broken:
-
-        
-
+        lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
+        lcdSendWriteString("Elavator broken!",2);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        state = pot;
     break;
-    case Digi360:
-        
-
-    break;
-
     case pot:
+        lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
+        lcdSendWriteString("Match value",2);
+
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        state = Digi360;
     break;
+
+    case Digi360:
+        lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
+        lcdSendWriteString("Turn ",portMAX_DELAY);
+        if(EncodeDirection)
+        {
+            lcdSendWriteString("right!",portMAX_DELAY);
+        }
+        else
+        {
+            lcdSendWriteString("left!",portMAX_DELAY);
+        }
+
+
+
+
+        
+
+    break;
+
+    
     }
 
     return state;
@@ -214,6 +241,7 @@ void vUITask(void)
     lcdSendCommand(lcdClearDisplay,2);
     lcdSendWriteString("Floor: ",2);
     lcdSendWriteChar((INT8U)(ulCurrentFloor + '0'),2);
+    lcdSendMoveCursor(0,1,5);
     
 
     while(1)

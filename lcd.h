@@ -57,7 +57,7 @@ typedef enum lcdCommand
     lcdWriteChar,
     lcdWriteString,
     lcdIncrementCursorRight,
-    lcdIncrementCursorLeft,
+    lcdIncrementCursorLeft
 } LcdCommand_t;
 
 typedef struct {

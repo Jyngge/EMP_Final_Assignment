@@ -31,6 +31,7 @@
 #include "keypad.h"
 #include "digiswitch.h"
 #include "UI.h"
+#include "event_groups.h"
 /***************** Defines ********************/
 
 #define USERTASK_STACK_SIZE configMINIMAL_STACK_SIZE
@@ -65,6 +66,7 @@ extern TaskHandle_t xButtonTaskHandle_SW0;
 extern TaskHandle_t xKeypadTaskHandle;
 extern TaskHandle_t xDigiSwitchTaskHandle;
 extern SemaphoreHandle_t xLcdQueueMutex;
+extern EventGroupHandle_t xUIEventGroup;
 /***************** Functions ******************/
 
 void init_hardware(){
@@ -140,6 +142,8 @@ int main(void)
       vLcdStringWrite("Queue creation failed!");
       while (1);
   }
+
+  xUIEventGroup = xEventGroupCreate( void );
 
   static INT16U temp1 = PIN4;
   static INT16U temp2 = PIN0;

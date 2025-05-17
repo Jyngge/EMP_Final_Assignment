@@ -48,7 +48,6 @@ static INT8U LCD_init_sequence[] =
 
 /***************** Variables ******************/
 SemaphoreHandle_t xLcdQueueMutex;
-INT8U cursor_position = 0;
 QueueHandle_t xLcdFunctionQueue;
 INT8U incrementMode = 1;
 
@@ -80,15 +79,6 @@ void vLcdCharecterWrite(INT8U character)
  **********************************************/
 {  
     TickType_t xLastWakeTime;
-
-    if(incrementMode)
-    {
-        cursor_position++;
-    }
-    else
-    {
-        cursor_position--;
-    }
 
     GPIO_PORTC_DATA_R = character & 0xF0;;  // Send high nibble
     GPIO_PORTD_DATA_R |= (1<<2);            // Select DR Register, write
@@ -137,7 +127,6 @@ void vLcdClearDisplay(void)
  **********************************************/
 {
     vLcdControlWrite((INT8U)CLEAR_DISPLAY);
-    cursor_position = 0;
 }
 
 void vLcdHome()
@@ -147,8 +136,7 @@ void vLcdHome()
  * Function : Moves cursor to position 0
  **********************************************/
 {
-    vLcdControlWrite(HOME);     
-    cursor_position = 0;     
+    vLcdControlWrite(HOME);
 }
 
 
@@ -162,26 +150,7 @@ void vLcdMoveCursor(INT8U x , INT8U y)
  **********************************************/
 {
     INT8U target_position = (x)+(y)*0x28;
-    
-    if(target_position < cursor_position)
-    {
-        
-        while (cursor_position - target_position)
-        {
-            vLcdControlWrite(MOVE_CURSOR_LEFT);
-            cursor_position--;
-        }
-    }
-    else if(target_position > cursor_position)
-    {
-        
-        while (target_position - cursor_position)
-        {
-            vLcdControlWrite(MOVE_CURSOR_RIGHT);
-            cursor_position++;
-        }
-    }
-   
+    vLcdControlWrite(0x80 | target_position);
 }
 
 

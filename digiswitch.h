@@ -28,6 +28,8 @@
 #include "semphr.h"
 #include "timers.h"
 #include "lcd.h"
+#include "event_groups.h"
+#include "UI.h"
 
 /***************** Defines ********************/
 
