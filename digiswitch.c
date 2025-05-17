@@ -24,6 +24,7 @@ INT16S postion = 2;
 INT16U A = 0;
 INT16U B = 0;
 INT16U dir = 0;
+extern QueueHandle_t xLcdFunctionQueue;
 
 // object based drawing
 
@@ -111,20 +112,21 @@ void vDigiswitchTask(void *pvParameters)
     while (1)
     {
         ulTaskNotifyTake(pdFALSE , portMAX_DELAY);
-        if(displayPosition < postion)
-        {
-            displayPosition++;
-        }
-        if(displayPosition > postion)
-        {
-            displayPosition--;
-        }
-        sIntToString(buffer,displayPosition);
-
-        // need to take a mutex
-        lcdSendMoveCursor(1,1,2);
-        lcdSendWriteString(buffer,2);
-
+        
+        
+       if(displayPosition < postion)
+       {
+           displayPosition++;
+       }
+       if(displayPosition > postion)
+       {
+           displayPosition--;
+       }
+       sIntToString(buffer,displayPosition);
+       // need to take a mutex
+       lcdSendMoveCursor(1,1,portMAX_DELAY);
+       lcdSendWriteString(buffer,2);
+    
             
     }
 }

@@ -141,8 +141,8 @@ int main(void)
       while (1);
   }
 
-  static temp1 = PIN4;
-  static temp2 = PIN0;
+  static INT16U temp1 = PIN4;
+  static INT16U temp2 = PIN0;
 
   xTaskCreate(vLCDTask, "LCD", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
   //xTaskCreate(vLcdTaskTester,"LCD Test", USERTASK_STACK_SIZE, NULL, LOW_PRIO,NULL);

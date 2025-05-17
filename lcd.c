@@ -100,7 +100,7 @@ void vLcdCharecterWrite(INT8U character)
     GPIO_PORTD_DATA_R &= ~(1<<3);           // Set E Low
     
     xLastWakeTime = xTaskGetTickCount();
-    vTaskDelayUntil(&xLastWakeTime,pdMS_TO_TICKS(20));
+    vTaskDelayUntil(&xLastWakeTime,pdMS_TO_TICKS(25));
     
 }
 
@@ -125,7 +125,7 @@ void vLcdControlWrite(INT8U instruction)
     GPIO_PORTD_DATA_R &= ~(1<<3);           // Set E Low
 
     xLastWakeTime = xTaskGetTickCount();
-    vTaskDelayUntil(&xLastWakeTime,pdMS_TO_TICKS(20));
+    vTaskDelayUntil(&xLastWakeTime,pdMS_TO_TICKS(25));
 }
 
 
@@ -253,8 +253,12 @@ void lcdSendWriteString(const INT8U *str, TickType_t ticksToWait)
     size_t len = strlen(str) + 1;
     INT8U *heapStr = (INT8U *)pvPortMalloc(len);
     if (heapStr == NULL) {
+        vLcdMoveCursor(0,1);
+        vLcdControlWrite(SET_CURSOR_INCREMENT_RIGHT);
         while(1)
-        vLcdStringWrite("MemoryError1");
+        {
+            vLcdStringWrite("MemoryError1");
+        }
     }
     strcpy(heapStr, str);
     LcdMessage_t msg;
