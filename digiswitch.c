@@ -20,7 +20,7 @@
 #include <limits.h>
 
 TaskHandle_t xDigiSwitchTaskHandle;
-INT16S postion = 500;
+INT16S postion = 2;
 INT16U A = 0;
 INT16U B = 0;
 INT16U dir = 0;
@@ -49,6 +49,20 @@ INT16U sReadB()
     return (GPIO_PORTA_DATA_R & PIN6) >> 1;
 }
 
+void vRoteryEncoderResume(void)
+{
+    GPIO_PORTA_ICR_R |= PIN5;
+    GPIO_PORTA_IM_R |= PIN5;
+    vTaskResume(xDigiSwitchTaskHandle);
+}
+
+void vRoteryEncoderSuspend(void)
+{
+    GPIO_PORTA_IM_R &= ~(PIN5);
+    vTaskSuspend(xDigiSwitchTaskHandle);
+}
+
+
 void digiswitchInterruptHandler(void)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -72,26 +86,27 @@ void digiswitchInterruptHandler(void)
 void sIntToString(INT8U *buffer,INT16U displayPosition)
 {
     INT16U temp = displayPosition;
-    INT8U tempBuffer[4];
     INT16U i = 0;
     for(i = 0; i < 4; i++)
     {
-        tempBuffer[i] = (temp % 10) + '0'; // convert to ASCII
+        buffer[i] = (temp % 10) + '0'; // convert to ASCII
         temp /= 10;
     }
 
-    for(i = 0; i < 4; i++)
-    {   
-        buffer[0 + i] = tempBuffer[3-i];
-    }
+    //or(i = 0; i < 4; i++)
+    //{   
+    //    buffer[0 + i] = tempBuffer[3-i];
+    //}
    
 }
 
 
 void vDigiswitchTask(void *pvParameters)
 {
-    INT8U buffer[4];
-    INT16U displayPosition = postion; // output value counting to positon value
+    static INT8U buffer[5];
+    
+    buffer[4] = '\0';
+    INT16S displayPosition = postion; // output value counting to positon value
     
     while (1)
     {
@@ -105,10 +120,13 @@ void vDigiswitchTask(void *pvParameters)
             displayPosition--;
         }
         sIntToString(buffer,displayPosition);
-        vLcdStringWrite(buffer);
+
+        // need to take a mutex
+        lcdSendMoveCursor(1,1,2);
+        lcdSendWriteString(buffer,2);
+
+            
     }
 }
-
-
 
 

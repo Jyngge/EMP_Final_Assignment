@@ -66,6 +66,7 @@ extern TaskHandle_t xKeypadTaskHandle;
 extern TaskHandle_t xDigiSwitchTaskHandle;
 extern SemaphoreHandle_t xLcdQueueMutex;
 /***************** Functions ******************/
+
 void init_hardware(){
   SYSCTL_RCGC2_R = SYSCTL_RCGC2_GPIOF + SYSCTL_RCGC2_GPIOD + SYSCTL_RCGC2_GPIOC + SYSCTL_RCGC2_GPIOA + SYSCTL_RCGC2_GPIOE;
   INT8U dummyload = SYSCTL_RCGC2_R;
@@ -108,75 +109,7 @@ static void setupHardware(void)
   init_systick();
 
 }
-
-
-
-
-enum elevatorState
-{
-    ELEVATOR_inital,
-    ELEVATOR_MOVING,
-    ELEVATOR_STOPPED,
-    ELEVATOR_INPUT,
-    ELEVATOR_CHOSE_FLOOR,
-    ELEVATOR_BROKEN,
-};
-void usEleveatorState(INT16U state)
-{
-    INT8U event;
-    #define DUMMYevent 0xFF
-    switch (state)
-    {
-        case ELEVATOR_inital:
-            xQueueReceive(xButtonEventQueue_SW4,&event, portMAX_DELAY);
-            if(event == BE_LONG_PUSH)
-            {
-              // Send target floor
-              state = ELEVATOR_MOVING;
-            }
-            break;
-        case ELEVATOR_MOVING:
-            // Queue Stop EVENT
-            if(DUMMYevent == DUMMYevent)
-            {
-              state = ELEVATOR_STOPPED;
-            }
-            break;
-        case ELEVATOR_STOPPED:
-            //door opens timeout?
-            state = ELEVATOR_INPUT;
-            break;
-        case ELEVATOR_INPUT:
-
-            state = PIN3;
-            break;
-        case ELEVATOR_CHOSE_FLOOR:
-            state = PIN4;
-            break;
-        case ELEVATOR_BROKEN:
-            state = PIN5;
-            break;
-        default:
-            vLcdStringWrite("failed to parse ElevatorState");
-            while(1);
-    }
-}
-
-void vElevatorTask(void *pvParameters)
-{
-
-  INT16U elevatorState = ELEVATOR_inital;
-  while(1)
-  {
-    
-    usEleveatorState(elevatorState);
-    
-  }
-
   
-}
-  
-
 
 
 int main(void)
@@ -201,24 +134,27 @@ int main(void)
       vLcdStringWrite("Queue creation failed!");
     while(1);
   }
-  xLcdFunctionQueue = xQueueCreate(15, sizeof(LcdMessage_t));
+  xLcdFunctionQueue = xQueueCreate(20, sizeof(LcdMessage_t));
   if (xLcdFunctionQueue == NULL)
   {
       vLcdStringWrite("Queue creation failed!");
       while (1);
   }
 
+  static temp1 = PIN4;
+  static temp2 = PIN0;
+
   xTaskCreate(vLCDTask, "LCD", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
-  xTaskCreate(vLcdTaskTester,"LCD Test", USERTASK_STACK_SIZE, NULL, LOW_PRIO,NULL);
+  //xTaskCreate(vLcdTaskTester,"LCD Test", USERTASK_STACK_SIZE, NULL, LOW_PRIO,NULL);
   xTaskCreate(status_led_task, "Status LED", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
-  //xTaskCreate(button_task, "Button1", USERTASK_STACK_SIZE, &temp1, HIGH_PRIO, &xButtonTaskHandle_SW4);
-  //xTaskCreate(button_task, "Button2", USERTASK_STACK_SIZE, &temp2, HIGH_PRIO, &xButtonTaskHandle_SW0);
+  xTaskCreate(button_task, "Button1", USERTASK_STACK_SIZE, &temp1, HIGH_PRIO, &xButtonTaskHandle_SW4);
+  xTaskCreate(button_task, "Button2", USERTASK_STACK_SIZE, &temp2, HIGH_PRIO, &xButtonTaskHandle_SW0);
   //xTaskCreate(vTestTaskButtons,"Button1Test", USERTASK_STACK_SIZE, &xButtonEventQueue_SW4, MED_PRIO,NULL);
   //xTaskCreate(vTestTaskButtons,"Button1Test", USERTASK_STACK_SIZE, &xButtonEventQueue_SW0, MED_PRIO,NULL);
   xTaskCreate(vKeypadScanTask, "Keypad Scan", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xKeypadTaskHandle);
   //xTaskCreate(vKeypadTestTask, "Keypad Test", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, NULL);
-  //xTaskCreate(vDigiswitchTask, "DigiSwitch", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xDigiSwitchTaskHandle);
-  //xTaskCreate(vUITask, "UI", USERTASK_STACK_SIZE + 16, NULL, LOW_PRIO, NULL);
+  xTaskCreate(vDigiswitchTask, "DigiSwitch", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xDigiSwitchTaskHandle);
+  xTaskCreate(vUITask, "UI", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
   vTaskStartScheduler();
 	return 0;
 }

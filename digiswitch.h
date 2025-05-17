@@ -42,6 +42,8 @@
 /***************** Functions ******************/
 void vDigiswitchInit(void);
 void vDigiswitchTask(void *pvParameters);
+void vRoteryEncoderSuspend(void);
+void vRoteryEncoderResume(void);
 
 
 
