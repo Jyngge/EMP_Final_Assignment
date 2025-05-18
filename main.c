@@ -32,6 +32,8 @@
 #include "digiswitch.h"
 #include "UI.h"
 #include "event_groups.h"
+#include "LED_Control.h"
+#include "potmeter.h"
 /***************** Defines ********************/
 
 #define USERTASK_STACK_SIZE configMINIMAL_STACK_SIZE
@@ -61,10 +63,17 @@
 extern QueueHandle_t xLcdFunctionQueue;
 extern QueueHandle_t xButtonEventQueue_SW4;
 extern QueueHandle_t xButtonEventQueue_SW0;
+extern QueueHandle_t xStringQueue;
+extern QueueHandle_t xLedStatusQueue;
+extern QueueHandle_t xButtonEventQueue_DIGI;
 extern TaskHandle_t xButtonTaskHandle_SW4;
 extern TaskHandle_t xButtonTaskHandle_SW0;
+extern TaskHandle_t xButtonTaskHandle_DIGI;
 extern TaskHandle_t xKeypadTaskHandle;
 extern TaskHandle_t xDigiSwitchTaskHandle;
+extern TaskHandle_t xElevatorStatusHandler;
+extern TaskHandle_t xMovingStateHandler;
+extern TaskHandle_t xPotValueHandler;
 extern SemaphoreHandle_t xLcdQueueMutex;
 extern EventGroupHandle_t xUIEventGroup;
 /***************** Functions ******************/
@@ -89,7 +98,6 @@ void init_hardware(){
   GPIO_PORTD_DIR_R = ALL_PINS; // set all pins on port D to output
   GPIO_PORTC_DEN_R = ALL_PINS; // enable all pins on port C
   GPIO_PORTC_DIR_R = ALL_PINS; // set all pins on port C to output
-
   
   GPIO_PORTE_ICR_R = 0xFF;
   NVIC_EN0_R |= (1 << 4);
@@ -136,6 +144,12 @@ int main(void)
       vLcdStringWrite("Queue creation failed!");
     while(1);
   }
+
+  xButtonEventQueue_DIGI = xQueueCreate(5, sizeof(INT8U));
+  if(xButtonEventQueue_DIGI == NULL){
+      vLcdStringWrite("Queue creation failed!");
+    while(1);
+  }
   xLcdFunctionQueue = xQueueCreate(20, sizeof(LcdMessage_t));
   if (xLcdFunctionQueue == NULL)
   {
@@ -143,22 +157,56 @@ int main(void)
       while (1);
   }
 
-  xUIEventGroup = xEventGroupCreate( void );
+  xLedStatusQueue = xQueueCreate(4, sizeof(LedStatusMessage));
+  if(xLedStatusQueue == NULL){
+      vLcdStringWrite("Queue creation failed!");
+    while(1);
+  }
 
-  static INT16U temp1 = PIN4;
-  static INT16U temp2 = PIN0;
+  xStringQueue = xQueueCreate(1, sizeof(INT16U));
+  if(xLedStatusQueue == NULL){
+      vLcdStringWrite("Queue creation failed!");
+    while(1);
+  }
+
+  xUIEventGroup = xEventGroupCreate();
+
+  static ButtonInfo_t SW4 = { 
+    .PORT_IM_R = (volatile INT32U *)0x40025410, 
+    .PORT_DATA_R = (volatile INT32U *)0x400253FC, 
+    .pin = PIN4,  
+    .xButtonEventQueue = &xButtonEventQueue_SW4 
+  };
+  static ButtonInfo_t SW0 = { 
+      .PORT_IM_R = (volatile INT32U *)0x40025410, 
+      .PORT_DATA_R = (volatile INT32U *)0x400253FC, 
+      .pin = PIN0,  
+      .xButtonEventQueue = &xButtonEventQueue_SW0 
+  };
+  static ButtonInfo_t DIGI = { 
+      .PORT_IM_R = (volatile INT32U *)0x40004510, 
+      .PORT_DATA_R = (volatile INT32U *)0x400043FC, 
+      .pin = PIN7,  
+      .xButtonEventQueue = &xButtonEventQueue_DIGI 
+  };
 
   xTaskCreate(vLCDTask, "LCD", USERTASK_STACK_SIZE, NULL, MED_PRIO, NULL);
   //xTaskCreate(vLcdTaskTester,"LCD Test", USERTASK_STACK_SIZE, NULL, LOW_PRIO,NULL);
   xTaskCreate(status_led_task, "Status LED", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
-  xTaskCreate(button_task, "Button1", USERTASK_STACK_SIZE, &temp1, HIGH_PRIO, &xButtonTaskHandle_SW4);
-  xTaskCreate(button_task, "Button2", USERTASK_STACK_SIZE, &temp2, HIGH_PRIO, &xButtonTaskHandle_SW0);
+  xTaskCreate(button_task, "Button1", USERTASK_STACK_SIZE, &SW4, HIGH_PRIO, &xButtonTaskHandle_SW4);
+  xTaskCreate(button_task, "Button2", USERTASK_STACK_SIZE, &SW0, HIGH_PRIO, &xButtonTaskHandle_SW0);
+  xTaskCreate(button_task, "Button2", USERTASK_STACK_SIZE, &DIGI, HIGH_PRIO, &xButtonTaskHandle_DIGI);
   //xTaskCreate(vTestTaskButtons,"Button1Test", USERTASK_STACK_SIZE, &xButtonEventQueue_SW4, MED_PRIO,NULL);
-  //xTaskCreate(vTestTaskButtons,"Button1Test", USERTASK_STACK_SIZE, &xButtonEventQueue_SW0, MED_PRIO,NULL);
+  //xTaskCreate(vTestTaskButtons,"Button2Test", USERTASK_STACK_SIZE, &xButtonEventQueue_SW0, MED_PRIO,NULL);
   xTaskCreate(vKeypadScanTask, "Keypad Scan", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xKeypadTaskHandle);
   //xTaskCreate(vKeypadTestTask, "Keypad Test", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, NULL);
   xTaskCreate(vDigiswitchTask, "DigiSwitch", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xDigiSwitchTaskHandle);
-  xTaskCreate(vUITask, "UI", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
+  xTaskCreate(vUITask, "UI", USERTASK_STACK_SIZE, NULL, LOW_PRIO, &xMovingStateHandler);
+  //xTaskCreate(vLedTestTask, "TestTask", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
+  xTaskCreate(vElevatorLedTask, "Elevator Status", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
+  xTaskCreate(vQueueReadLED, "LEDQueue", USERTASK_STACK_SIZE, NULL, LOW_PRIO, &xElevatorStatusHandler);
+  xTaskCreate(vPotmeterTask, "PotTask", USERTASK_STACK_SIZE, NULL, LOW_PRIO, &xPotValueHandler);
+
   vTaskStartScheduler();
 	return 0;
 }

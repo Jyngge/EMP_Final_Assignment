@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"*.dbclient-js": "javascript",
+			"stdint.h": "c",
+			"vcruntime.h": "c",
+			"digiswitch.h": "c",
+			"keypad.h": "c"
+		}
+	}
+}

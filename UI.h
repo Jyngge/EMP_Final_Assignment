@@ -8,7 +8,6 @@
 #ifndef UI_H_
 #define UI_H_
 
-
 void vUIInit(void);
 void vUITask(void);
 

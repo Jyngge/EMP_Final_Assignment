@@ -250,7 +250,7 @@ void lcdSendMoveCursor(INT8U x, INT8U y, TickType_t ticksToWait)
     xQueueSend(xLcdFunctionQueue, &msg, ticksToWait);
 }
 
-void lcdSendWriteChar(INT8U c, TickType_t ticksToWait) 
+void lcdSendWriteChar(INT8U c, TickType_t ticksToWait)
 /**********************************************
  * Input    : ASCII charecter
  * Output   : 

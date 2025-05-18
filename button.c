@@ -35,6 +35,8 @@
 /*****************************   Variables   *******************************/
 QueueHandle_t xButtonEventQueue_SW4;
 QueueHandle_t xButtonEventQueue_SW0;
+QueueHandle_t xButtonEventQueue_DIGI;
+TaskHandle_t xButtonTaskHandle_DIGI;
 TaskHandle_t xButtonTaskHandle_SW4;
 TaskHandle_t xButtonTaskHandle_SW0;
 
@@ -47,8 +49,8 @@ INT16U button_pushed(INT16U pin)
 
 void vLongPushCallback( TimerHandle_t xTimer )
 {
-    ButtonState_t *xButton;
-	xButton = (ButtonState_t *)pvTimerGetTimerID( xTimer );
+    ButtonInfo_t *xButton;
+	xButton = (ButtonInfo_t *)pvTimerGetTimerID( xTimer );
 
 	if(xButton->button_state == (BS_FIRST_PUSH || BS_SECOND_PUSH))	                                    // if the timer runs out before the button is released it was a long push
 	{
@@ -103,25 +105,13 @@ void button_task( void *pvParameters )
 {
 	
 	TimerHandle_t xButtonTimeOutTimer;
-	ButtonState_t xButton;
-	xButton.button_state = BS_IDLE;
-	TaskHandle_t xButtonTaskHandle = xTaskGetCurrentTaskHandle();
-	INT16U pin = *(INT16U *)pvParameters;
+	//ButtonState_t xButton;
 	
-	if (xButtonTaskHandle == xButtonTaskHandle_SW4) // Compare directly with the task handle
-	{
-		xButton.xButtonEventQueue = &xButtonEventQueue_SW4;
-	}
-	else if (xButtonTaskHandle == xButtonTaskHandle_SW0) // Compare directly with the task handle
-	{
-		xButton.xButtonEventQueue = &xButtonEventQueue_SW0;
-	}
-	else
-	{
-		vLcdStringWrite("Error assigning button event queue!");
-	}
+	TaskHandle_t xButtonTaskHandle = xTaskGetCurrentTaskHandle();
+	ButtonInfo_t xButtonInfo = *(ButtonInfo_t *)pvParameters;
+	xButtonInfo.button_state = BS_IDLE;
 
-	xButtonTimeOutTimer = xTimerCreate( "LPTimeout", pdMS_TO_TICKS( 2000 ), ONE_SHOT, &xButton, vLongPushCallback);
+	xButtonTimeOutTimer = xTimerCreate( "LPTimeout", pdMS_TO_TICKS( 2000 ), ONE_SHOT, &xButtonInfo, vLongPushCallback);
 	if( xButtonTimeOutTimer == NULL )
 	{
 		vLcdStringWrite("Timer creation failed!");
@@ -133,15 +123,15 @@ void button_task( void *pvParameters )
   	{
 
 		
-  		switch( xButton.button_state )
+  		switch( xButtonInfo.button_state )
   		{
   		case BS_IDLE:
-  		    GPIO_PORTF_IM_R |= pin;
+  		    *(xButtonInfo.PORT_IM_R) |= xButtonInfo.pin;
 			ulTaskNotifyTake( pdTRUE, portMAX_DELAY );	// clear the notification
 
-		    if( button_pushed(pin))		                                    // if button pushed
+		    if( !(*(xButtonInfo.PORT_DATA_R) & xButtonInfo.pin))		                                    // if button pushed
 		    {
-		        xButton.button_state = BS_FIRST_PUSH;                               // we go from the idle state to first push
+		        xButtonInfo.button_state = BS_FIRST_PUSH;                               // we go from the idle state to first push
 				xTimerChangePeriod(xButtonTimeOutTimer, pdMS_TO_TICKS(2000), 0);
 				xTimerStart( xButtonTimeOutTimer, 0 );                          // start the timer
   			}
@@ -149,35 +139,35 @@ void button_task( void *pvParameters )
 		    break;
   		case BS_FIRST_PUSH:
 		
-  		  	if( !button_pushed(pin) )	                                        // if button released before the timer runs out it was a normal push
+  		  	if( (*(xButtonInfo.PORT_DATA_R) & xButtonInfo.pin) )	                                        // if button released before the timer runs out it was a normal push
 			{
 				xTimerStop( xButtonTimeOutTimer,0);                          // stop the timer
-				xButton.button_state = BS_FIRST_RELEASE;
+				xButtonInfo.button_state = BS_FIRST_RELEASE;
 				xTimerChangePeriod( xButtonTimeOutTimer, pdMS_TO_TICKS( 200 ), 0); // we set a new timer to see if it is a long push
 				xTimerStart( xButtonTimeOutTimer, 0 );                          // start the timer
   		  	}	
 		    break;
   		case BS_FIRST_RELEASE:
-  		  if( button_pushed(pin) )		                                    // if button is pressed again before the timer runs out it was a double push
+  		 if( !(*(xButtonInfo.PORT_DATA_R) & xButtonInfo.pin) )		                                    // if button is pressed again before the timer runs out it was a double push
 			{
-			    xButton.button_state = BS_SECOND_PUSH;
+			    xButtonInfo.button_state = BS_SECOND_PUSH;
 			    xTimerStop( xButtonTimeOutTimer,0);
 			    xTimerChangePeriod(xButtonTimeOutTimer, pdMS_TO_TICKS(2000), 0);                          // stop the timer
 				xTimerStart( xButtonTimeOutTimer, 0 );                          // start the timer
   			}
 			break;
   	  case BS_SECOND_PUSH:
-  	  	if( !button_pushed(pin) )					                        // if button released before the timer runs out it was a double push
+  	  	if( (*(xButtonInfo.PORT_DATA_R) & xButtonInfo.pin) )					                        // if button released before the timer runs out it was a double push
 			{
-				xButton.event = BE_DOUBLE_PUSH;
-				xQueueSend( *xButton.xButtonEventQueue, &xButton.event, 0 );	// send event to queue
-			    xButton.button_state = BS_IDLE;
+				xButtonInfo.event = BE_DOUBLE_PUSH;
+				xQueueSend( *xButtonInfo.xButtonEventQueue, &xButtonInfo.event, 0 );	// send event to queue
+			    xButtonInfo.button_state = BS_IDLE;
   	  	}
 			break;
   	  case BS_LONG_PUSH:
 
-  	  	if( !button_pushed(pin) )					                        // when the button is released after a long push we go back to the idle state
-			xButton.button_state = BS_IDLE;
+  	  	if( (*(xButtonInfo.PORT_DATA_R) & xButtonInfo.pin) )					                        // when the button is released after a long push we go back to the idle state
+			xButtonInfo.button_state = BS_IDLE;
 			break;
   	  default:
   	  	break;

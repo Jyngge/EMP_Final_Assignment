@@ -17,9 +17,9 @@
 #include "queue.h"
 #include "adc.h"
 
+void vPotmeterInit(void);
 
-
-
+void vPotmeterTask(void *pvParameters);
 
 
 #endif /* POTMETER_H_ */

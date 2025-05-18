@@ -42,13 +42,21 @@ typedef enum
   BE_LONG_PUSH,
 } button_event_t;
 
-typedef struct 
-{	
-    INT16U button_state;
-	button_event_t event;
-	QueueHandle_t *xButtonEventQueue;
-} ButtonState_t;
+//typedef struct 
+//{	
+//    INT16U button_state;
+//	button_event_t event;
+//	QueueHandle_t *xButtonEventQueue;
+//} ButtonState_t;
 
+typedef struct {
+    volatile INT32U* PORT_IM_R; // pointer to the register
+    volatile INT32U* PORT_DATA_R;
+    QueueHandle_t *xButtonEventQueue;
+    INT16U pin;
+    INT16U button_state;
+    INT16U event;
+} ButtonInfo_t;
 
 /*****************************   Constants   *******************************/
 

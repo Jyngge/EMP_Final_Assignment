@@ -18,8 +18,14 @@
 #include "potmeter.h"
 #define PIN5    0x20
 
-extern QueueHandle_t xStringQueue;
+TaskHandle_t xPotValueHandler;
+
+QueueHandle_t xStringQueue;
 extern QueueHandle_t xControlQueue;
+
+extern TaskHandle_t xMovingStateHandler;
+
+
 
 void vPotmeterInit(void)
 {
@@ -33,6 +39,7 @@ void vPotmeterInit(void)
 
 void vPotmeterTask(void *pvParameters)
 {
+
     BaseType_t xStatus;
     INT16U sPotValue;
     INT16U sCompValue;
@@ -41,13 +48,12 @@ void vPotmeterTask(void *pvParameters)
     INT8U *stringMessage;
     while(1)
     {
-
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         sPotValue = get_adc();
-        
-        xQueueSend(xControlQueue, &controlMessage, portMAX_DELAY);
-        vPortTaskDelay(pdMs_TO_TICKS(500));
-        xQueueSend(xStringQueue, &stringMessage, portMAX_DELAY);
-        
+        vTaskDelay(pdMS_TO_TICKS(200));
+        xQueueSend( xStringQueue,&sPotValue,portMAX_DELAY);
+
+
     }
 }
 
