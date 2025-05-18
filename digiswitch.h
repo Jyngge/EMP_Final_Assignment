@@ -37,6 +37,12 @@
 #define PIN6 0x40
 #define PIN7 0x80
 #define ALL_PINS 0xFF
+
+#define ENCODER_FLOOR_SELECT    0x01
+#define ENCODER_360             0x02
+#define ENCODER_TURN_DIR        0x04
+#define ENCODER_TURN_COMPLET    0x08
+#define ENCODER_EVENT_FLAGS     0x0F
 /***************** Constants ******************/
 
 /***************** Variables ******************/

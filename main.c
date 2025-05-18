@@ -195,7 +195,7 @@ int main(void)
   xTaskCreate(status_led_task, "Status LED", USERTASK_STACK_SIZE, NULL, LOW_PRIO, NULL);
   xTaskCreate(button_task, "Button1", USERTASK_STACK_SIZE, &SW4, HIGH_PRIO, &xButtonTaskHandle_SW4);
   xTaskCreate(button_task, "Button2", USERTASK_STACK_SIZE, &SW0, HIGH_PRIO, &xButtonTaskHandle_SW0);
-  xTaskCreate(button_task, "Button2", USERTASK_STACK_SIZE, &DIGI, HIGH_PRIO, &xButtonTaskHandle_DIGI);
+  xTaskCreate(button_task, "Button3", USERTASK_STACK_SIZE, &DIGI, HIGH_PRIO, &xButtonTaskHandle_DIGI);
   //xTaskCreate(vTestTaskButtons,"Button1Test", USERTASK_STACK_SIZE, &xButtonEventQueue_SW4, MED_PRIO,NULL);
   //xTaskCreate(vTestTaskButtons,"Button2Test", USERTASK_STACK_SIZE, &xButtonEventQueue_SW0, MED_PRIO,NULL);
   xTaskCreate(vKeypadScanTask, "Keypad Scan", USERTASK_STACK_SIZE, NULL, HIGH_PRIO, &xKeypadTaskHandle);

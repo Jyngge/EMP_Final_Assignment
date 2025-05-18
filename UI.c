@@ -37,23 +37,22 @@
 #define ARROW_UP        0x18
 #define ARROW_DOWN      0x19
 
-#define ENCODER_FLOOR_SELECT    0x01
-#define ENCODER_360             0x02
-
 
 extern QueueHandle_t xKeypadQueue;
 extern QueueHandle_t xLcdFunctionQueue;
 extern QueueHandle_t xButtonEventQueue_SW4;
 extern QueueHandle_t xButtonEventQueue_SW0;
+extern QueueHandle_t xButtonEventQueue_DIGI;
 extern QueueHandle_t xLedStatusQueue;
 extern QueueHandle_t xStringQueue;
 extern TaskHandle_t xElevatorStatusHandler;
 extern TaskHandle_t xPotValueHandler;
 
+
 TaskHandle_t xMovingStateHandler;
 
 EventGroupHandle_t xUIEventGroup;
-
+BOOLEAN EncodeDirection = 0;
 INT16U ulCurrentFloor = 2;
 INT16U ulTargetFloor = 0;
 INT16U ulTripCount;
@@ -106,7 +105,8 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
     static INT16U PotValue;
     static INT8U ucPasswordBuffer[4];
     static INT8U distance;
-    static BOOLEAN EncodeDirection = 0;
+
+    static EventBits_t xBitsToWaitFor;
 
     switch(state){
     case idle:
@@ -173,7 +173,7 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
         postion = ulCurrentFloor;
         xEventGroupSetBits(xUIEventGroup,ENCODER_FLOOR_SELECT);
         
-        xStatus = xQueueReceive(xButtonEventQueue_SW0,&ucButtonPress,portMAX_DELAY);
+        xStatus = xQueueReceive(xButtonEventQueue_DIGI,&ucButtonPress,portMAX_DELAY);
         if(ucButtonPress == BE_SINGLE_PUSH)
         {
             xEventGroupClearBits(xUIEventGroup, ENCODER_FLOOR_SELECT);
@@ -246,7 +246,7 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
 
         xQueueSend(xLedStatusQueue, &QueueLED, 10);         // notify led task and wait for respons
         xTaskNotifyGive(xElevatorStatusHandler);
-
+        
         lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
         lcdSendWriteString("Elavator broken!",2);
         vTaskDelay(pdMS_TO_TICKS(2000));
@@ -254,6 +254,8 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
         state = pot;
     break;
     case pot:
+        state = Digi360;
+        break;
         lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
         vTaskDelay(pdMS_TO_TICKS(1));
         lcdSendWriteString("Match value",2);
@@ -288,16 +290,28 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
     case Digi360:
         lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
         lcdSendWriteString("Turn ",portMAX_DELAY);
-        xEventGroupSetBits(xUIEventGroup,ENCODER_360);
         if(EncodeDirection)
-        {
-            lcdSendWriteString("right!",portMAX_DELAY);
-        }
-        else
         {
             lcdSendWriteString("left!",portMAX_DELAY);
         }
+        else
+        {
+            lcdSendWriteString("right!",portMAX_DELAY);
+        }
+        postion = 0;
+        lcdSendMoveCursor(0,1,portMAX_DELAY);
+        xEventGroupSetBits(xUIEventGroup,ENCODER_360);
 
+        
+        xEventGroupWaitBits(xUIEventGroup,ENCODER_TURN_COMPLET,pdTRUE,pdFALSE,portMAX_DELAY);
+        lcdSendMoveCursor(1,0,portMAX_DELAY);
+        lcdSendWriteString("Press the Encoder",portMAX_DELAY);
+        xQueueReset(xButtonEventQueue_DIGI);
+        xQueueReceive(xButtonEventQueue_DIGI,ucButtonPress,portMAX_DELAY);
+        lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
+        lcdSendWriteString("FLOOR: ",portMAX_DELAY);
+        lcdSendMoveCursor(0,1,portMAX_DELAY);
+        state = idle;
     break;
 
     
