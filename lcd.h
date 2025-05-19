@@ -56,6 +56,7 @@ typedef enum lcdCommand
     lcdMoveCursor,
     lcdWriteChar,
     lcdWriteString,
+    lcdWriteLiteralString,
     lcdIncrementCursorRight,
     lcdIncrementCursorLeft
 } LcdCommand_t;
@@ -76,6 +77,7 @@ typedef struct {
 
 
 void lcdSendWriteString(const INT8U *str, TickType_t ticksToWait);
+void lcdSendWriteLiteralString(const INT8U *str, TickType_t ticksToWait);
 void lcdSendMoveCursor(INT8U x, INT8U y, TickType_t ticksToWait);
 void lcdSendWriteChar(INT8U c, TickType_t ticksToWait);
 void lcdSendCommand(LcdCommand_t cmd, TickType_t ticksToWait);

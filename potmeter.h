@@ -19,7 +19,7 @@
 
 void vPotmeterInit(void);
 
-void vPotmeterTask(void *pvParameters);
+void vPotMatchTask(void *pvParameters);
 
 
 #endif /* POTMETER_H_ */

@@ -15,6 +15,7 @@
 * 
 *****************************************************************************/
 #include <stdint.h>
+#include <stdlib.h>
 #include "tm4c123gh6pm.h"
 #include "emp_type.h"
 #include "FreeRTOS.h"
@@ -32,6 +33,7 @@
 #include "LED_Control.h"
 #include "adc.h"
 #include "potmeter.h"
+#include "UI.h"
 /***************** Defines ********************/
 #define PASSWORD_LENGTH 4
 #define ARROW_UP        0x18
@@ -46,9 +48,9 @@ extern QueueHandle_t xButtonEventQueue_DIGI;
 extern QueueHandle_t xLedStatusQueue;
 extern QueueHandle_t xStringQueue;
 extern TaskHandle_t xElevatorStatusHandler;
-extern TaskHandle_t xPotValueHandler;
+extern TaskHandle_t xPotMatchTaskHandle;
 
-
+ElevatorState_t state = idle;
 TaskHandle_t xMovingStateHandler;
 
 EventGroupHandle_t xUIEventGroup;
@@ -57,22 +59,30 @@ INT16U ulCurrentFloor = 2;
 INT16U ulTargetFloor = 0;
 INT16U ulTripCount;
 INT16U ulValueMatch;
-
-extern INT16U postion;
+INT8U floorStr[3];
+INT16U potTargetValue;
+float targetVoltage;
+extern INT16S postion;
+extern INT16S displayPosition;
 extern TaskHandle_t xDigiSwitchTaskHandle;
 
 LedStatusMessage QueueLED;
 
-typedef enum{
-    idle,           //idles
-    moving,         // only one entry and exit , timout
-    inputCode,      // entered by keypad press, return on timeout
-    selectFloor,    // Floor select, from correct keypress
-    broken,         // entered from moving state on 4th trip
-                    // display intruction
-    pot,            // terget value / actual value
-    Digi360         // 360 degree
-}ElevatorState_t;
+void vCurrentFloorToString(INT8U *buffer, INT16U ulCurrentFloor)
+{
+    if (ulCurrentFloor < 10)
+    {
+        buffer[0] = ' ';
+        buffer[1] = (INT8U)('0' + ulCurrentFloor);
+        buffer[2] = '\0';
+    }
+    else
+    {
+        buffer[0] = (INT8U)('0' + (ulCurrentFloor / 10));
+        buffer[1] = (INT8U)('0' + (ulCurrentFloor % 10));
+        buffer[2] = '\0';
+    }
+}
 
 BOOLEAN ulCheckPassword(INT8U* buffer)
 {
@@ -96,21 +106,34 @@ BOOLEAN ulCheckPassword(INT8U* buffer)
 }
 
 
-ElevatorState_t vElevatorState(ElevatorState_t state)
+void vUITask(void)
+/**********************************************
+ * Input    :
+ * Output   :
+ * Function : Task to handle UI updates and interactions
+ **********************************************/
 {
+
+    uint32_t NotificationValue = 0;
+    srand(xTaskGetTickCount());
+    lcdSendCommand(lcdClearDisplay,2);
+    lcdSendWriteString("Floor: ",2);
+    lcdSendWriteChar((INT8U)(ulCurrentFloor + '0'),2);
+    lcdSendMoveCursor(0,1,5);
     static BaseType_t xStatus;
     static INT8U ucKeypadPress;
     static INT8U ucButtonPress;
     static INT8S i;
-    static INT16U PotValue;
+    static INT16U distance;
     static INT8U ucPasswordBuffer[4];
-    static INT8U distance;
-
-    static EventBits_t xBitsToWaitFor;
+    xQueueReset(xKeypadQueue);
+    while(1)
+    {
 
     switch(state){
     case idle:
         
+
         xStatus = xQueueReceive(xKeypadQueue,&ucKeypadPress,0);
         if(xStatus == pdPASS)
         {
@@ -134,6 +157,7 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
 
             }
         }
+        vTaskDelay(pdMS_TO_TICKS(200));
     break;
     case inputCode:
         if(i >= 0)
@@ -154,6 +178,7 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
 
             if(ulCheckPassword(ucPasswordBuffer))
             {
+                
                 state = selectFloor;
             }
             else
@@ -167,20 +192,16 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
         }
     break;
     case selectFloor:
+        
+        
         lcdSendCommand(lcdClearDisplay,2);
         lcdSendWriteString("Select Floor: ",2);
         lcdSendMoveCursor(4,1,2);
         postion = ulCurrentFloor;
-        xEventGroupSetBits(xUIEventGroup,ENCODER_FLOOR_SELECT);
-        
-        xStatus = xQueueReceive(xButtonEventQueue_DIGI,&ucButtonPress,portMAX_DELAY);
-        if(ucButtonPress == BE_SINGLE_PUSH)
-        {
-            xEventGroupClearBits(xUIEventGroup, ENCODER_FLOOR_SELECT);
-            ulTargetFloor = postion;
-            state = moving;
-        }
-
+        xQueueReset(xButtonEventQueue_DIGI);
+        xQueueReceive(xButtonEventQueue_DIGI,&ucButtonPress,portMAX_DELAY);
+        ulTargetFloor = postion;
+        state = moving;
 
     break;
 
@@ -237,6 +258,11 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
             if(ulCurrentFloor == 21 ) //ulTargetFloor)
             {
                 state = idle;
+                lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
+                lcdSendWriteLiteralString("FLOOR:",portMAX_DELAY);
+                vCurrentFloorToString(floorStr, ulCurrentFloor);
+                lcdSendWriteString(floorStr, portMAX_DELAY);
+                lcdSendMoveCursor(0,1,portMAX_DELAY);
             }
             lcdSendMoveCursor(0,1,5);
 
@@ -256,38 +282,34 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
     case pot:
         state = Digi360;
         break;
-        lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
-        vTaskDelay(pdMS_TO_TICKS(1));
-        lcdSendWriteString("Match value",2);
-        vTaskDelay(pdMS_TO_TICKS(2000));
+    
+    potTargetValue = (INT16U)(rand() % 34);
+    
+    lcdSendCommand(lcdClearDisplay, portMAX_DELAY);
+    lcdSendWriteString("Match value:", portMAX_DELAY);
 
-        while(1){
-            xTaskNotifyGive(xPotValueHandler);
-            xQueueReceive( xStringQueue,&PotValue,portMAX_DELAY);
-            ulValueMatch = PotValue; //4095;
-            int ulCurrentFloorOverflow4 = ulValueMatch % 10;
-            int ulCurrentFloorOverflow3 = ulValueMatch / 10 % 10;
-            int ulCurrentFloorOverflow2 = ulValueMatch / 100 % 10;
-            int ulCurrentFloorOverflow1 = ulValueMatch / 1000 % 10;
-            lcdSendMoveCursor(0,1,2);
-            lcdSendWriteChar((INT8U)(ulCurrentFloorOverflow1 + '0'),2);
-            lcdSendMoveCursor(1,1,2);
-            lcdSendWriteChar((INT8U)(ulCurrentFloorOverflow2 + '0'),2);
-            lcdSendMoveCursor(2,1,2);
-            lcdSendWriteChar((INT8U)(ulCurrentFloorOverflow3 + '0'),2);
-            lcdSendMoveCursor(3,1,2);
-            lcdSendWriteChar((INT8U)(ulCurrentFloorOverflow4 + '0'),2);
-            vTaskDelay(pdMS_TO_TICKS(1000));
+    // Display the target value
+    char buffer[8];
+    int v_int = potTargetValue / 10;      // whole volts
+    int v_dec = potTargetValue % 10;      // tenths
+    snprintf((char*)buffer, sizeof(buffer), "%d.%dV", v_int, v_dec);
+    lcdSendMoveCursor(0, 1, portMAX_DELAY);
+    lcdSendWriteString(buffer, portMAX_DELAY);
 
-        }
-
-        if(ulValueMatch == 500)
-        {
-        state = Digi360;
-        }
+    // Notify the potmeter match task to start
+    xEventGroupClearBits(xUIEventGroup,ENCODER_SELECT_COMPLET);
+    ulTaskNotifyTake(pdTRUE, 0);
+    xTaskNotifyGive(xPotMatchTaskHandle);
+    ulTaskNotifyTake(pdTRUE,portMAX_DELAY);
+    //NotificationValue = ulTaskNotifyTake(pdTRUE,portMAX_DELAY);
+    state = Digi360;
     break;
 
     case Digi360:
+
+        postion = 0;
+        displayPosition = 0;
+        xEventGroupClearBits(xUIEventGroup,ENCODER_TURN_COMPLET);
         lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
         lcdSendWriteString("Turn ",portMAX_DELAY);
         if(EncodeDirection)
@@ -298,46 +320,25 @@ ElevatorState_t vElevatorState(ElevatorState_t state)
         {
             lcdSendWriteString("right!",portMAX_DELAY);
         }
-        postion = 0;
         lcdSendMoveCursor(0,1,portMAX_DELAY);
-        xEventGroupSetBits(xUIEventGroup,ENCODER_360);
-
         
-        xEventGroupWaitBits(xUIEventGroup,ENCODER_TURN_COMPLET,pdTRUE,pdFALSE,portMAX_DELAY);
-        lcdSendMoveCursor(1,0,portMAX_DELAY);
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        lcdSendMoveCursor(0,0,portMAX_DELAY);
         lcdSendWriteString("Press the Encoder",portMAX_DELAY);
         xQueueReset(xButtonEventQueue_DIGI);
-        xQueueReceive(xButtonEventQueue_DIGI,ucButtonPress,portMAX_DELAY);
+        xQueueReceive(xButtonEventQueue_DIGI,&ucButtonPress,portMAX_DELAY);
+        EncodeDirection ^= 1;
         lcdSendCommand(lcdClearDisplay,portMAX_DELAY);
-        lcdSendWriteString("FLOOR: ",portMAX_DELAY);
+        lcdSendWriteString("FLOOR:",portMAX_DELAY);
+        vCurrentFloorToString(floorStr, ulCurrentFloor);
+        lcdSendWriteString(floorStr, portMAX_DELAY);
+
         lcdSendMoveCursor(0,1,portMAX_DELAY);
+        postion = ulCurrentFloor;
+        displayPosition = ulCurrentFloor;
         state = idle;
     break;
-
-    
     }
-
-    return state;
-}
-
-void vUITask(void)
-/**********************************************
- * Input    :    
- * Output   : 
- * Function : Task to handle UI updates and interactions
- **********************************************/
-{
-    static ElevatorState_t state = idle;
-    lcdSendCommand(lcdClearDisplay,2);
-    lcdSendWriteString("Floor: ",2);
-    lcdSendWriteChar((INT8U)(ulCurrentFloor + '0'),2);
-    lcdSendMoveCursor(0,1,5);
-    
-
-    while(1)
-    {
-
-        state = vElevatorState(state);
 
     }
 

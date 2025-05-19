@@ -14,6 +14,12 @@ INT16U get_adc()
 init_adc()
 {
   SYSCTL_RCGC0_R |= SYSCTL_RCGC0_ADC0;
+  INT8U dummyRead = SYSCTL_RCGC0_ADC0;
+  dummyRead = SYSCTL_RCGC0_ADC0;
+  dummyRead = SYSCTL_RCGC0_ADC0;
+  dummyRead = SYSCTL_RCGC0_ADC0;
+  dummyRead = SYSCTL_RCGC0_ADC0;
+  dummyRead = SYSCTL_RCGC0_ADC0;
 
   // Set ADC0 Sequencer priorities.
   // SS3(bit12-13): Priority = 0 ; Highest

@@ -235,6 +235,18 @@ void lcdSendWriteString(const INT8U *str, TickType_t ticksToWait)
     msg.params.string = heapStr;
     xQueueSend(xLcdFunctionQueue, &msg, ticksToWait);
 }
+void lcdSendWriteLiteralString(const INT8U *str, TickType_t ticksToWait)
+/**********************************************
+ * Input    : Static or string literal pointer
+ * Output   : 
+ * Function : lcd String write API for literals (no heap allocation)
+ **********************************************/
+{
+    LcdMessage_t msg;
+    msg.cmd = lcdWriteLiteralString;
+    msg.params.string = (INT8U *)str; // Cast away const for compatibility
+    xQueueSend(xLcdFunctionQueue, &msg, ticksToWait);
+}
 
 void lcdSendMoveCursor(INT8U x, INT8U y, TickType_t ticksToWait) 
 /**********************************************
@@ -321,6 +333,9 @@ void vLCDTask(void *pvParameters)
             {
                 vPortFree(instruction.params.string);
             }
+        break;
+        case lcdWriteLiteralString:
+        vLcdStringWrite(instruction.params.string);
         break;
         case lcdIncrementCursorRight:
             vLcdControlWrite(SET_CURSOR_INCREMENT_RIGHT);

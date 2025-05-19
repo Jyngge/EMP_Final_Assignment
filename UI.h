@@ -11,6 +11,15 @@
 void vUIInit(void);
 void vUITask(void);
 
+typedef enum{
+    idle,        
+    moving,      
+    inputCode,   
+    selectFloor, 
+    broken,      
+    pot,         
+    Digi360      
+}ElevatorState_t;
 
 
 

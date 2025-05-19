@@ -40,6 +40,7 @@ typedef enum
   BE_SINGLE_PUSH,
   BE_DOUBLE_PUSH,
   BE_LONG_PUSH,
+  BE_NO_EVENT
 } button_event_t;
 
 //typedef struct 

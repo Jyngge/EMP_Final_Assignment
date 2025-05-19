@@ -42,14 +42,17 @@
 #define ENCODER_360             0x02
 #define ENCODER_TURN_DIR        0x04
 #define ENCODER_TURN_COMPLET    0x08
+#define ENCODER_SELECT_COMPLET  0x10
 #define ENCODER_EVENT_FLAGS     0x0F
+
 /***************** Constants ******************/
 
 /***************** Variables ******************/
 
 /***************** Functions ******************/
 void vDigiswitchInit(void);
-void vDigiswitchTask(void *pvParameters);
+void vDigiswitchTask360(void *pvParameters);
+void vDigiswitchTaskSelectFloor(void *pvParameters);
 void vRoteryEncoderSuspend(void);
 void vRoteryEncoderResume(void);
 
